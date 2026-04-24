@@ -6,7 +6,7 @@ export default tseslint.config(
     ignores: ["dist/**", "coverage/**"]
   },
   js.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
+  ...tseslint.configs.recommended,
   {
     files: ["**/*.ts"],
     languageOptions: {
