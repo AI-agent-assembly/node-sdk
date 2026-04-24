@@ -22,11 +22,13 @@
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=lcov --coverage.reporter=text"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",
     "@types/node": "^22.15.21",
+    "@vitest/coverage-v8": "^2.1.8",
     "eslint": "^9.24.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
