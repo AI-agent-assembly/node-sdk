@@ -4,6 +4,11 @@
   "description": "TypeScript SDK for Agent Assembly",
   "license": "Apache-2.0",
   "type": "module",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=18.18.0",
+    "pnpm": ">=9"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/AI-agent-assembly/node-sdk.git"
