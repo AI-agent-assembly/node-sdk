@@ -11,7 +11,7 @@ export function createNativeClient(options: InitAssemblyOptions): NativeClient {
   return {
     mode,
     close: async () => {
-      return Promise.resolve();
+      return;
     }
   };
 }
