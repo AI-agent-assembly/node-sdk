@@ -1,0 +1,21 @@
+{
+  "name": "@agent-assembly/sdk",
+  "version": "0.0.0",
+  "description": "TypeScript SDK for Agent Assembly",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AI-agent-assembly/node-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AI-agent-assembly/node-sdk/issues"
+  },
+  "homepage": "https://github.com/AI-agent-assembly/node-sdk#readme",
+  "keywords": [
+    "agent-assembly",
+    "sdk",
+    "typescript",
+    "nodejs"
+  ]
+}
