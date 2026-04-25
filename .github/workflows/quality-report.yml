@@ -1,0 +1,55 @@
+name: quality-report
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  coverage-and-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate coverage report
+        run: pnpm test:coverage
+
+      - name: Upload coverage to CodeCov
+        uses: codecov/codecov-action@v6.0.0
+        with:
+          files: ./coverage/lcov.info
+          flags: unittest
+          name: node-sdk-coverage
+          slug: AI-agent-assembly/node-sdk
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+      - name: SonarQube Scan
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-scan-action@v7.1.0
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}

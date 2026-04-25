@@ -1,0 +1,4 @@
+[submodule "agent-assembly-spec"]
+	path = agent-assembly-spec
+	url = https://github.com/AI-agent-assembly/agent-assembly-spec.git
+	branch = master

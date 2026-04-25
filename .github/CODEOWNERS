@@ -1,0 +1,9 @@
+# Default owner for all files in this repository.
+* @Chisanan232
+
+# Workflow and repo governance files.
+/.github/ @Chisanan232
+# SDK source implementation.
+/src/ @Chisanan232
+# Unit and integration test code.
+/tests/ @Chisanan232
