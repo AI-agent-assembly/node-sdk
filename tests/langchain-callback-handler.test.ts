@@ -1,0 +1,39 @@
+import { describe, expect, it, vi } from "vitest";
+import { AssemblyCallbackHandler } from "../src/adapters/langchain/index.js";
+import type { GatewayClient } from "../src/gateway/client.js";
+
+function createGatewayMock(): GatewayClient {
+  return {
+    mode: "sdk-only",
+    start: vi.fn(async () => undefined),
+    close: vi.fn(async () => undefined),
+    check: vi.fn(async () => ({ denied: false, pending: false })),
+    waitForApproval: vi.fn(async () => ({ denied: false })),
+    record: vi.fn(async () => undefined),
+    recordResult: vi.fn(async () => undefined),
+    scanPrompts: vi.fn(async () => undefined)
+  };
+}
+
+describe("AssemblyCallbackHandler", () => {
+  it("tracks denied tool runs and redacts output on handleToolEnd", async () => {
+    const gateway = createGatewayMock();
+    gateway.check = vi.fn(async () => ({ denied: true, reason: "policy deny" }));
+
+    const handler = new AssemblyCallbackHandler(gateway);
+
+    await handler.handleToolStart({ name: "send_email" }, { to: "alice@example.com" }, "run-1");
+
+    expect(handler.getPendingDenialCount()).toBe(1);
+
+    const output = await handler.handleToolEnd("raw output", "run-1");
+    expect(output).toBe("[BLOCKED] This action was flagged as a policy violation.");
+    expect(handler.getPendingDenialCount()).toBe(0);
+
+    expect(gateway.record).toHaveBeenCalledWith({
+      action: "policy_post_block",
+      runId: "run-1",
+      reason: "policy deny"
+    });
+  });
+});
