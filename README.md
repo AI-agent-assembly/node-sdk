@@ -14,6 +14,12 @@ Provide a thin wrapper around the Agent Assembly Rust runtime through:
 The primary entrypoint is `initAssembly()`, which prepares runtime governance and
 registers framework hooks for supported tool ecosystems.
 
+## Policy Matching Constraint
+
+Vercel AI SDK tools do not expose a `.name` field. Governance policies must match
+by tool description content (or tool map key in wrapper context), not by strict
+framework-level tool name.
+
 ## Planned Source Layout
 
 ```text
