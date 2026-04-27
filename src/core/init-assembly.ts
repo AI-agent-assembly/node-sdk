@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import type { Adapter } from "../adapters/adapter.js";
 import type { GatewayClient } from "../gateway/client.js";
 import type { AssemblyConfig } from "../types/assembly-config.js";
+import type { AssemblyContext } from "../types/assembly-context.js";
 
 const requireFromCwd = createRequire(`${process.cwd()}/`);
 
@@ -64,4 +65,17 @@ export async function startNetworkLayerIfNeeded(
   }
 
   await client.start();
+}
+
+export async function initAssembly(config: AssemblyConfig): Promise<AssemblyContext> {
+  const client = createClient(config);
+  const frameworks = detectFrameworks();
+  const adapters = await registerAdapters(frameworks);
+
+  await startNetworkLayerIfNeeded(client, config);
+
+  return {
+    activeAdapters: adapters.map((adapter) => adapter.id),
+    shutdown: async () => undefined
+  };
 }

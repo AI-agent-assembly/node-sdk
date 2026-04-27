@@ -1,1 +1,7 @@
-export { createClient } from "./init-assembly.js";
+export {
+  createClient,
+  detectFrameworks,
+  initAssembly,
+  registerAdapters,
+  startNetworkLayerIfNeeded
+} from "./init-assembly.js";
