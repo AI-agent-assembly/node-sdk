@@ -1,4 +1,6 @@
 import { DynamicTool } from "@langchain/core/tools";
+import { FakeStreamingLLM } from "@langchain/core/utils/testing";
+import { initializeAgentExecutorWithOptions } from "langchain/agents";
 import { describe, expect, it, vi } from "vitest";
 import { AssemblyCallbackHandler, wrapToolWithAssembly } from "../src/adapters/langchain/index.js";
 import { PolicyViolationError } from "../src/errors/index.js";
@@ -76,5 +78,61 @@ describe("LangChain runtime integration", () => {
     ).rejects.toBeInstanceOf(PolicyViolationError);
 
     expect(toolFunc).not.toHaveBeenCalled();
+  });
+
+  it("applies pre-execution DENY during AgentExecutor tool attempt", async () => {
+    const gateway = createGatewayMock();
+    gateway.check = vi.fn(async () => ({ denied: true, reason: "blocked-by-policy" }));
+    const toolFunc = vi.fn(async (input: string) => `echo:${input}`);
+
+    const dynamicTool = new DynamicTool({
+      name: "blocked_tool",
+      description: "Blocked operation",
+      func: toolFunc
+    });
+
+    const wrappedTool = wrapToolWithAssembly(dynamicTool, gateway, {
+      generateRunId: () => "run-agent-denied"
+    });
+
+    const llm = new FakeStreamingLLM({
+      responses: [
+        "Thought: I should use a tool.\nAction: blocked_tool\nAction Input: secret",
+        "Final Answer: unreachable"
+      ]
+    });
+
+    const executor = await initializeAgentExecutorWithOptions([wrappedTool], llm, {
+      agentType: "zero-shot-react-description",
+      maxIterations: 2,
+      returnIntermediateSteps: true
+    });
+
+    const result = await executor.invoke(
+      { input: "Use the blocked tool." },
+      { callbacks: [new AssemblyCallbackHandler(gateway)], runId: "run-agent-denied" }
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        output: "unreachable",
+        intermediateSteps: [
+          expect.objectContaining({
+            action: expect.objectContaining({
+              tool: "blocked_tool",
+              toolInput: "secret"
+            })
+          })
+        ]
+      })
+    );
+
+    expect(toolFunc).not.toHaveBeenCalled();
+    expect(gateway.check).toHaveBeenCalledWith({
+      action: "tool_call",
+      toolName: "blocked_tool",
+      args: "secret",
+      runId: "run-agent-denied"
+    });
   });
 });
