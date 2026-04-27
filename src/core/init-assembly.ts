@@ -123,7 +123,9 @@ function wrapLangChainTools(
 
   const tools = ensureLangChainTools(config);
   const wrapperOptions: WrapToolWithAssemblyOptions = {
-    approvalTimeoutMs: config.langchain?.approvalTimeoutMs
+    ...(config.langchain?.approvalTimeoutMs
+      ? { approvalTimeoutMs: config.langchain.approvalTimeoutMs }
+      : {})
   };
 
   for (const tool of Object.values(tools)) {

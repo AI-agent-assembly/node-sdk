@@ -25,7 +25,7 @@ export class AssemblyCallbackHandler {
     await this.gateway.record({
       action: "tool_start_check",
       runId,
-      reason: decision.reason
+      ...(decision.reason ? { reason: decision.reason } : {})
     });
 
     if (decision.denied) {
@@ -60,7 +60,7 @@ export class AssemblyCallbackHandler {
     await this.gateway.scanPrompts({
       prompts,
       runId,
-      modelName: llm.name
+      ...(llm.name ? { modelName: llm.name } : {})
     });
   }
 
