@@ -52,12 +52,20 @@ export class AssemblyCallbackHandler {
     return output;
   }
 
-  async handleLLMStart(_llm: { name?: string }, _prompts: string[], _runId: string): Promise<void> {
-    return;
+  async handleLLMStart(llm: { name?: string }, prompts: string[], runId: string): Promise<void> {
+    await this.gateway.scanPrompts({
+      prompts,
+      runId,
+      modelName: llm.name
+    });
   }
 
-  async handleLLMEnd(_output: unknown, _runId: string): Promise<void> {
-    return;
+  async handleLLMEnd(output: unknown, runId: string): Promise<void> {
+    await this.gateway.record({
+      action: "llm_response",
+      runId,
+      output
+    });
   }
 
   // Exposed for deterministic unit testing around cleanup behavior.
