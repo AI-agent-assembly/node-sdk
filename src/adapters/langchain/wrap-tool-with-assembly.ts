@@ -19,16 +19,22 @@ async function waitForApprovalWithTimeout(
   runId: string,
   timeoutMs: number
 ): Promise<{ denied?: boolean; reason?: string }> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
   const timeoutPromise = new Promise<{ denied: true; reason: string }>((resolve) => {
-    const timeoutId = setTimeout(() => {
+    timeoutId = setTimeout(() => {
       resolve({ denied: true, reason: `Approval timeout after ${timeoutMs}ms` });
     }, timeoutMs);
-
-    void timeoutId;
   });
 
-  const approvalPromise = gateway.waitForApproval(toolName, runId, timeoutMs);
-  return Promise.race([approvalPromise, timeoutPromise]);
+  try {
+    const approvalPromise = gateway.waitForApproval(toolName, runId, timeoutMs);
+    return await Promise.race([approvalPromise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 export function wrapToolWithAssembly<TTool extends LangChainToolLike>(
