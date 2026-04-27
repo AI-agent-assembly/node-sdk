@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import type { Adapter } from "../adapters/adapter.js";
 import type { GatewayClient } from "../gateway/client.js";
 import type { AssemblyConfig } from "../types/assembly-config.js";
 
@@ -37,4 +38,19 @@ export function detectFrameworks(): string[] {
   }
 
   return detected;
+}
+
+function createAdapter(id: string): Adapter {
+  return {
+    id,
+    apply: async () => undefined
+  };
+}
+
+export async function registerAdapters(frameworks: readonly string[]): Promise<Adapter[]> {
+  const adapters = frameworks.map((framework) => createAdapter(framework));
+  for (const adapter of adapters) {
+    await adapter.apply();
+  }
+  return adapters;
 }
