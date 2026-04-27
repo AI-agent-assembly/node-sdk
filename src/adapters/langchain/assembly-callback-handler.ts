@@ -1,5 +1,7 @@
 import type { GatewayClient } from "../../gateway/client.js";
 
+const BLOCKED_OUTPUT = "[BLOCKED] This action was flagged as a policy violation.";
+
 export class AssemblyCallbackHandler {
   readonly name = "assembly_handler";
   private readonly pendingDenials = new Map<string, { reason: string; at: number }>();
@@ -34,7 +36,19 @@ export class AssemblyCallbackHandler {
     }
   }
 
-  async handleToolEnd(output: unknown, _runId: string): Promise<unknown> {
+  async handleToolEnd(output: unknown, runId: string): Promise<unknown> {
+    const pending = this.pendingDenials.get(runId);
+    if (pending) {
+      this.pendingDenials.delete(runId);
+      await this.gateway.record({
+        action: "policy_post_block",
+        runId,
+        reason: pending.reason
+      });
+      return BLOCKED_OUTPUT;
+    }
+
+    await this.gateway.recordResult({ runId, output });
     return output;
   }
 
