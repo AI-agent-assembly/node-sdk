@@ -13,6 +13,8 @@ export class AssemblyCallbackHandler {
   ) {}
 
   async handleToolStart(tool: { name: string }, input: unknown, runId: string): Promise<void> {
+    this.cleanupExpiredPendingDenials();
+
     const decision = await this.gateway.check({
       action: "tool_call",
       toolName: tool.name,
@@ -35,6 +37,8 @@ export class AssemblyCallbackHandler {
   }
 
   async handleToolEnd(output: unknown, runId: string): Promise<unknown> {
+    this.cleanupExpiredPendingDenials();
+
     const pending = this.pendingDenials.get(runId);
     if (pending) {
       this.pendingDenials.delete(runId);
@@ -51,6 +55,8 @@ export class AssemblyCallbackHandler {
   }
 
   async handleLLMStart(llm: { name?: string }, prompts: string[], runId: string): Promise<void> {
+    this.cleanupExpiredPendingDenials();
+
     await this.gateway.scanPrompts({
       prompts,
       runId,
@@ -59,6 +65,8 @@ export class AssemblyCallbackHandler {
   }
 
   async handleLLMEnd(output: unknown, runId: string): Promise<void> {
+    this.cleanupExpiredPendingDenials();
+
     await this.gateway.record({
       action: "llm_response",
       runId,
