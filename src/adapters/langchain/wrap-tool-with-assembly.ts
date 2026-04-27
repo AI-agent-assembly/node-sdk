@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { PolicyViolationError } from "../../errors/policy-violation-error.js";
 import type { GatewayClient } from "../../gateway/client.js";
 import type { LangChainRunConfig, LangChainToolLike } from "../../types/langchain-adapter.js";
@@ -10,7 +11,7 @@ export interface WrapToolWithAssemblyOptions {
 const DEFAULT_APPROVAL_TIMEOUT_MS = 30_000;
 
 function createRunId(): string {
-  return `run_${Math.random().toString(36).slice(2, 10)}`;
+  return `run_${randomUUID()}`;
 }
 
 async function waitForApprovalWithTimeout(
