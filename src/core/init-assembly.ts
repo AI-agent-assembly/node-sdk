@@ -76,23 +76,15 @@ export async function startNetworkLayerIfNeeded(
 }
 
 function ensureLangChainCallbacks(config: AssemblyConfig): LangChainCallbackHandlerLike[] {
-  if (!config.langchain) {
-    config.langchain = {};
-  }
-  if (!config.langchain.callbacks) {
-    config.langchain.callbacks = [];
-  }
+  config.langchain ??= {};
+  config.langchain.callbacks ??= [];
 
   return config.langchain.callbacks;
 }
 
 function ensureLangChainTools(config: AssemblyConfig): Record<string, LangChainToolLike> {
-  if (!config.langchain) {
-    config.langchain = {};
-  }
-  if (!config.langchain.tools) {
-    config.langchain.tools = {};
-  }
+  config.langchain ??= {};
+  config.langchain.tools ??= {};
 
   return config.langchain.tools;
 }

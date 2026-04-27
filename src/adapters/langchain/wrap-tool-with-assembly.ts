@@ -74,10 +74,7 @@ export function wrapToolWithAssembly<TTool extends LangChainToolLike>(
       }
     }
 
-    return originalInvoke(input, {
-      ...(config ?? {}),
-      runId
-    });
+    return originalInvoke(input, config ? { ...config, runId } : { runId });
   };
 
   return tool;
