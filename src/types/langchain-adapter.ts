@@ -14,34 +14,16 @@ export interface LangChainCallbackHandlerLike {
     tool: { name?: string },
     input: unknown,
     runId: string,
-    parentRunId?: string,
-    tags?: string[],
-    metadata?: Record<string, unknown>,
-    runName?: string
+    ...rest: unknown[]
   ) => Promise<void>;
-  handleToolEnd?: (
-    output: unknown,
-    runId: string,
-    parentRunId?: string,
-    tags?: string[]
-  ) => Promise<unknown>;
+  handleToolEnd?: (output: unknown, runId: string, ...rest: unknown[]) => Promise<unknown>;
   handleLLMStart?: (
     llm: { name?: string },
     prompts: string[],
     runId: string,
-    parentRunId?: string,
-    extraParams?: Record<string, unknown>,
-    tags?: string[],
-    metadata?: Record<string, unknown>,
-    runName?: string
+    ...rest: unknown[]
   ) => Promise<void>;
-  handleLLMEnd?: (
-    output: unknown,
-    runId: string,
-    parentRunId?: string,
-    tags?: string[],
-    extraParams?: Record<string, unknown>
-  ) => Promise<void>;
+  handleLLMEnd?: (output: unknown, runId: string, ...rest: unknown[]) => Promise<void>;
 }
 
 export interface LangChainAdapterConfig {
