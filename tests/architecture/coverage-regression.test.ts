@@ -1,0 +1,62 @@
+import { describe, expect, it, vi } from "vitest";
+import { PolicyViolationError } from "../../src/errors/index.js";
+
+async function loadCoreWithInstalledPackages(installed: ReadonlySet<string>) {
+  vi.resetModules();
+  vi.doMock("node:module", () => ({
+    createRequire: () => ({
+      resolve: (packageName: string) => {
+        if (!installed.has(packageName)) {
+          throw new Error("MODULE_NOT_FOUND");
+        }
+        return packageName;
+      }
+    })
+  }));
+
+  return import("../../src/core/init-assembly.js");
+}
+
+describe("coverage regression guards", () => {
+  it("registerAdapters applies non-empty frameworks", async () => {
+    const { registerAdapters } = await import("../../src/core/index.js");
+
+    const adapters = await registerAdapters(["langchain-js"]);
+
+    expect(adapters).toHaveLength(1);
+    expect(adapters[0]?.id).toBe("langchain-js");
+  });
+
+  it("initAssembly builds active adapters and shutdown iterates them", async () => {
+    const { initAssembly } = await loadCoreWithInstalledPackages(new Set(["ai"]));
+
+    const runtime = await initAssembly({
+      gatewayUrl: "https://gateway.example.com",
+      apiKey: "test-key",
+      mode: "sdk-only"
+    });
+
+    expect(runtime.activeAdapters).toEqual(["vercel-ai-sdk"]);
+    await expect(runtime.shutdown()).resolves.toBeUndefined();
+  });
+
+  it("exports PolicyViolationError with stable shape", () => {
+    const error = new PolicyViolationError("blocked");
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe("PolicyViolationError");
+    expect(error.message).toBe("blocked");
+  });
+
+  it("loads type and adapter contract modules", async () => {
+    await import("../../src/types/assembly-mode.js");
+    await import("../../src/types/assembly-config.js");
+    await import("../../src/types/assembly-context.js");
+    await import("../../src/types/tool-map.js");
+    await import("../../src/adapters/adapter.js");
+    await import("../../src/adapters/adapter-registry.js");
+    await import("../../src/gateway/client.js");
+
+    expect(true).toBe(true);
+  });
+});
