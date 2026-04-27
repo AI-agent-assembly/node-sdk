@@ -1,10 +1,17 @@
 import { createRequire } from "node:module";
 import type { Adapter } from "../adapters/adapter.js";
-import { AssemblyCallbackHandler } from "../adapters/langchain/index.js";
+import {
+  AssemblyCallbackHandler,
+  wrapToolWithAssembly,
+  type WrapToolWithAssemblyOptions
+} from "../adapters/langchain/index.js";
 import { createNoopGatewayClient, type GatewayClient } from "../gateway/client.js";
 import type { AssemblyConfig } from "../types/assembly-config.js";
 import type { AssemblyContext } from "../types/assembly-context.js";
-import type { LangChainCallbackHandlerLike } from "../types/langchain-adapter.js";
+import type {
+  LangChainCallbackHandlerLike,
+  LangChainToolLike
+} from "../types/langchain-adapter.js";
 
 const requireFromCwd = createRequire(`${process.cwd()}/`);
 
@@ -79,6 +86,17 @@ function ensureLangChainCallbacks(config: AssemblyConfig): LangChainCallbackHand
   return config.langchain.callbacks;
 }
 
+function ensureLangChainTools(config: AssemblyConfig): Record<string, LangChainToolLike> {
+  if (!config.langchain) {
+    config.langchain = {};
+  }
+  if (!config.langchain.tools) {
+    config.langchain.tools = {};
+  }
+
+  return config.langchain.tools;
+}
+
 function registerLangChainHandler(
   config: AssemblyConfig,
   client: GatewayClient,
@@ -94,6 +112,27 @@ function registerLangChainHandler(
   return handler;
 }
 
+function wrapLangChainTools(
+  config: AssemblyConfig,
+  client: GatewayClient,
+  frameworks: readonly string[]
+): string[] {
+  if (!frameworks.includes("langchain-js") && !config.langchain) {
+    return [];
+  }
+
+  const tools = ensureLangChainTools(config);
+  const wrapperOptions: WrapToolWithAssemblyOptions = {
+    approvalTimeoutMs: config.langchain?.approvalTimeoutMs
+  };
+
+  for (const tool of Object.values(tools)) {
+    wrapToolWithAssembly(tool, client, wrapperOptions);
+  }
+
+  return Object.keys(tools);
+}
+
 export async function initAssembly(config: AssemblyConfig): Promise<AssemblyContext> {
   const client = createClient(config);
   const frameworks = detectFrameworks();
@@ -102,12 +141,14 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
   await startNetworkLayerIfNeeded(client, config);
 
   const langChainHandler = registerLangChainHandler(config, client, frameworks);
+  const wrappedLangChainTools = wrapLangChainTools(config, client, frameworks);
 
   return {
     activeAdapters: [
       ...new Set([
         ...adapters.map((adapter) => adapter.id),
-        ...(langChainHandler ? ["langchain-js"] : [])
+        ...(langChainHandler ? ["langchain-js"] : []),
+        ...(wrappedLangChainTools.length > 0 ? ["langchain-js"] : [])
       ])
     ],
     shutdown: async () => {
