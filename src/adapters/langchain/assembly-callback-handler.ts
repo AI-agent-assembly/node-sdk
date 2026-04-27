@@ -10,9 +10,7 @@ export class AssemblyCallbackHandler {
     private readonly gateway: GatewayClient,
     private readonly now: () => number = () => Date.now(),
     private readonly pendingDenialMaxAgeMs: number = 5 * 60 * 1000
-  ) {
-    void this.pendingDenialMaxAgeMs;
-  }
+  ) {}
 
   async handleToolStart(tool: { name: string }, input: unknown, runId: string): Promise<void> {
     const decision = await this.gateway.check({
@@ -66,6 +64,17 @@ export class AssemblyCallbackHandler {
       runId,
       output
     });
+  }
+
+  cleanupExpiredPendingDenials(now: number = this.now()): number {
+    let removed = 0;
+    for (const [runId, denial] of this.pendingDenials.entries()) {
+      if (now - denial.at >= this.pendingDenialMaxAgeMs) {
+        this.pendingDenials.delete(runId);
+        removed += 1;
+      }
+    }
+    return removed;
   }
 
   // Exposed for deterministic unit testing around cleanup behavior.
