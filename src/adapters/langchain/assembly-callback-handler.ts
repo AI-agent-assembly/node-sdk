@@ -9,13 +9,29 @@ export class AssemblyCallbackHandler {
     private readonly now: () => number = () => Date.now(),
     private readonly pendingDenialMaxAgeMs: number = 5 * 60 * 1000
   ) {
-    void this.gateway;
-    void this.now;
     void this.pendingDenialMaxAgeMs;
   }
 
-  async handleToolStart(_tool: { name: string }, _input: unknown, _runId: string): Promise<void> {
-    return;
+  async handleToolStart(tool: { name: string }, input: unknown, runId: string): Promise<void> {
+    const decision = await this.gateway.check({
+      action: "tool_call",
+      toolName: tool.name,
+      args: input,
+      runId
+    });
+
+    await this.gateway.record({
+      action: "tool_start_check",
+      runId,
+      reason: decision.reason
+    });
+
+    if (decision.denied) {
+      this.pendingDenials.set(runId, {
+        reason: decision.reason ?? "Tool denied by policy.",
+        at: this.now()
+      });
+    }
   }
 
   async handleToolEnd(output: unknown, _runId: string): Promise<unknown> {
