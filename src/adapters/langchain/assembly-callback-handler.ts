@@ -1,3 +1,4 @@
+import { BaseCallbackHandler } from "@langchain/core/callbacks/base";
 import type { GatewayClient } from "../../gateway/client.js";
 
 const BLOCKED_OUTPUT = "[BLOCKED] This action was flagged as a policy violation.";
@@ -11,7 +12,7 @@ function getSerializedName(value: unknown): string | undefined {
   return typeof candidate === "string" ? candidate : undefined;
 }
 
-export class AssemblyCallbackHandler {
+export class AssemblyCallbackHandler extends BaseCallbackHandler {
   readonly name = "assembly_handler";
   private readonly pendingDenials = new Map<string, { reason: string; at: number }>();
 
@@ -19,7 +20,9 @@ export class AssemblyCallbackHandler {
     private readonly gateway: GatewayClient,
     private readonly now: () => number = () => Date.now(),
     private readonly pendingDenialMaxAgeMs: number = 5 * 60 * 1000
-  ) {}
+  ) {
+    super();
+  }
 
   async handleToolStart(tool: { name?: string }, input: unknown, runId: string): Promise<void> {
     this.cleanupExpiredPendingDenials();
