@@ -1,19 +1,20 @@
 import { createRequire } from "node:module";
 import type { Adapter } from "../adapters/adapter.js";
-import type { GatewayClient } from "../gateway/client.js";
+import { AssemblyCallbackHandler } from "../adapters/langchain/index.js";
+import { createNoopGatewayClient, type GatewayClient } from "../gateway/client.js";
 import type { AssemblyConfig } from "../types/assembly-config.js";
 import type { AssemblyContext } from "../types/assembly-context.js";
+import type { LangChainCallbackHandlerLike } from "../types/langchain-adapter.js";
 
 const requireFromCwd = createRequire(`${process.cwd()}/`);
 
 export function createClient(config: AssemblyConfig): GatewayClient {
   const mode = config.mode ?? "auto";
+  if (config.gatewayClient) {
+    return config.gatewayClient;
+  }
 
-  return {
-    mode,
-    start: async () => undefined,
-    close: async () => undefined
-  };
+  return createNoopGatewayClient(mode);
 }
 
 function isPackageInstalled(packageName: string): boolean {
@@ -67,6 +68,32 @@ export async function startNetworkLayerIfNeeded(
   await client.start();
 }
 
+function ensureLangChainCallbacks(config: AssemblyConfig): LangChainCallbackHandlerLike[] {
+  if (!config.langchain) {
+    config.langchain = {};
+  }
+  if (!config.langchain.callbacks) {
+    config.langchain.callbacks = [];
+  }
+
+  return config.langchain.callbacks;
+}
+
+function registerLangChainHandler(
+  config: AssemblyConfig,
+  client: GatewayClient,
+  frameworks: readonly string[]
+): AssemblyCallbackHandler | undefined {
+  if (!frameworks.includes("langchain-js") && !config.langchain) {
+    return undefined;
+  }
+
+  const callbacks = ensureLangChainCallbacks(config);
+  const handler = new AssemblyCallbackHandler(client);
+  callbacks.push(handler);
+  return handler;
+}
+
 export async function initAssembly(config: AssemblyConfig): Promise<AssemblyContext> {
   const client = createClient(config);
   const frameworks = detectFrameworks();
@@ -74,8 +101,15 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
 
   await startNetworkLayerIfNeeded(client, config);
 
+  const langChainHandler = registerLangChainHandler(config, client, frameworks);
+
   return {
-    activeAdapters: adapters.map((adapter) => adapter.id),
+    activeAdapters: [
+      ...new Set([
+        ...adapters.map((adapter) => adapter.id),
+        ...(langChainHandler ? ["langchain-js"] : [])
+      ])
+    ],
     shutdown: async () => {
       for (const adapter of adapters) {
         await adapter.shutdown?.();
