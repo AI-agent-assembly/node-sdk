@@ -76,6 +76,11 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
 
   return {
     activeAdapters: adapters.map((adapter) => adapter.id),
-    shutdown: async () => undefined
+    shutdown: async () => {
+      for (const adapter of adapters) {
+        await adapter.shutdown?.();
+      }
+      await client.close();
+    }
   };
 }
