@@ -54,3 +54,14 @@ export async function registerAdapters(frameworks: readonly string[]): Promise<A
   }
   return adapters;
 }
+
+export async function startNetworkLayerIfNeeded(
+  client: GatewayClient,
+  config: AssemblyConfig
+): Promise<void> {
+  if (config.mode === "sdk-only") {
+    return;
+  }
+
+  await client.start();
+}
