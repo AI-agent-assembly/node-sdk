@@ -7,7 +7,8 @@ export interface WithAssemblyOptions {
 
 export function withAssembly<TTool, TTools extends ToolMap<TTool>>(
   tools: TTools,
-  _options: WithAssemblyOptions
+  options: WithAssemblyOptions
 ): TTools {
+  void options;
   return tools;
 }
