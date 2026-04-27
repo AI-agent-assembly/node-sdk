@@ -36,4 +36,36 @@ describe("AssemblyCallbackHandler", () => {
       reason: "policy deny"
     });
   });
+
+  it("records tool result when no denial is pending", async () => {
+    const gateway = createGatewayMock();
+    const handler = new AssemblyCallbackHandler(gateway);
+
+    const output = await handler.handleToolEnd("safe output", "run-2");
+
+    expect(output).toBe("safe output");
+    expect(gateway.recordResult).toHaveBeenCalledWith({
+      runId: "run-2",
+      output: "safe output"
+    });
+  });
+
+  it("records prompt scan and llm response events", async () => {
+    const gateway = createGatewayMock();
+    const handler = new AssemblyCallbackHandler(gateway);
+
+    await handler.handleLLMStart({ name: "gpt-model" }, ["prompt-a", "prompt-b"], "run-llm");
+    await handler.handleLLMEnd({ content: "model-output" }, "run-llm");
+
+    expect(gateway.scanPrompts).toHaveBeenCalledWith({
+      prompts: ["prompt-a", "prompt-b"],
+      runId: "run-llm",
+      modelName: "gpt-model"
+    });
+    expect(gateway.record).toHaveBeenCalledWith({
+      action: "llm_response",
+      runId: "run-llm",
+      output: { content: "model-output" }
+    });
+  });
 });
