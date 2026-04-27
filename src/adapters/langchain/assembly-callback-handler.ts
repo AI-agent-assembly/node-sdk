@@ -2,6 +2,15 @@ import type { GatewayClient } from "../../gateway/client.js";
 
 const BLOCKED_OUTPUT = "[BLOCKED] This action was flagged as a policy violation.";
 
+function getSerializedName(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const candidate = (value as { name?: unknown }).name;
+  return typeof candidate === "string" ? candidate : undefined;
+}
+
 export class AssemblyCallbackHandler {
   readonly name = "assembly_handler";
   private readonly pendingDenials = new Map<string, { reason: string; at: number }>();
@@ -12,12 +21,13 @@ export class AssemblyCallbackHandler {
     private readonly pendingDenialMaxAgeMs: number = 5 * 60 * 1000
   ) {}
 
-  async handleToolStart(tool: { name: string }, input: unknown, runId: string): Promise<void> {
+  async handleToolStart(tool: { name?: string }, input: unknown, runId: string): Promise<void> {
     this.cleanupExpiredPendingDenials();
 
+    const toolName = tool.name ?? getSerializedName(tool) ?? "unknown_tool";
     const decision = await this.gateway.check({
       action: "tool_call",
-      toolName: tool.name,
+      toolName,
       args: input,
       runId
     });
@@ -57,10 +67,11 @@ export class AssemblyCallbackHandler {
   async handleLLMStart(llm: { name?: string }, prompts: string[], runId: string): Promise<void> {
     this.cleanupExpiredPendingDenials();
 
+    const modelName = llm.name ?? getSerializedName(llm);
     await this.gateway.scanPrompts({
       prompts,
       runId,
-      ...(llm.name ? { modelName: llm.name } : {})
+      ...(modelName ? { modelName } : {})
     });
   }
 
