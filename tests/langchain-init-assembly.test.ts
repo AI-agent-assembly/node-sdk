@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { PolicyViolationError } from "../src/errors/index.js";
 import type { GatewayClient } from "../src/gateway/client.js";
 import type { LangChainToolLike } from "../src/types/langchain-adapter.js";
 
@@ -67,10 +66,8 @@ describe("initAssembly LangChain integration", () => {
     expect(callbacks).toHaveLength(1);
     expect(callbacks[0]?.name).toBe("assembly_handler");
 
-    await expect(firstTool.invoke({ to: "user@example.com" })).rejects.toBeInstanceOf(
-      PolicyViolationError
-    );
-    await expect(secondTool.invoke({ q: "query" })).rejects.toBeInstanceOf(PolicyViolationError);
+    await expect(firstTool.invoke({ to: "user@example.com" })).rejects.toThrow("send_email");
+    await expect(secondTool.invoke({ q: "query" })).rejects.toThrow("search_web");
 
     await runtime.shutdown();
   });
