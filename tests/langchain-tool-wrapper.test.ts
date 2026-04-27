@@ -39,4 +39,38 @@ describe("wrapToolWithAssembly", () => {
     await expect(tool.invoke({ to: "bob@example.com" })).rejects.toBeInstanceOf(PolicyViolationError);
     expect(invokeSpy).not.toHaveBeenCalled();
   });
+
+  it("allows tool invocation after PENDING decision is approved", async () => {
+    const gateway = createGatewayMock();
+    gateway.check = vi.fn(async () => ({ pending: true }));
+    gateway.waitForApproval = vi.fn(async () => ({ denied: false }));
+
+    const tool = createTool();
+    const invokeSpy = tool.invoke as ReturnType<typeof vi.fn>;
+
+    wrapToolWithAssembly(tool, gateway, {
+      generateRunId: () => "run-approved",
+      approvalTimeoutMs: 100
+    });
+
+    await expect(tool.invoke({ to: "carol@example.com" })).resolves.toBe("tool-result");
+    expect(invokeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws PolicyViolationError when PENDING approval is rejected", async () => {
+    const gateway = createGatewayMock();
+    gateway.check = vi.fn(async () => ({ pending: true }));
+    gateway.waitForApproval = vi.fn(async () => ({ denied: true, reason: "manager rejected" }));
+
+    const tool = createTool();
+    const invokeSpy = tool.invoke as ReturnType<typeof vi.fn>;
+
+    wrapToolWithAssembly(tool, gateway, {
+      generateRunId: () => "run-rejected",
+      approvalTimeoutMs: 100
+    });
+
+    await expect(tool.invoke({ to: "dave@example.com" })).rejects.toBeInstanceOf(PolicyViolationError);
+    expect(invokeSpy).not.toHaveBeenCalled();
+  });
 });
