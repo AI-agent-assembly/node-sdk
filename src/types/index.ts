@@ -10,3 +10,9 @@ export type {
   GatewayRecordEvent,
   GatewayResultRecord
 } from "./gateway-governance.js";
+export type {
+  LangChainAdapterConfig,
+  LangChainCallbackHandlerLike,
+  LangChainRunConfig,
+  LangChainToolLike
+} from "./langchain-adapter.js";
