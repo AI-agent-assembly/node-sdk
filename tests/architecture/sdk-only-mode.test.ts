@@ -9,7 +9,12 @@ describe("startNetworkLayerIfNeeded", () => {
       {
         mode: "sdk-only",
         start,
-        close: async () => undefined
+        close: async () => undefined,
+        check: async () => ({ denied: false, pending: false }),
+        waitForApproval: async () => ({ denied: false }),
+        record: async () => undefined,
+        recordResult: async () => undefined,
+        scanPrompts: async () => undefined
       },
       {
         gatewayUrl: "https://gateway.example.com",

@@ -25,6 +25,17 @@ Vercel AI SDK tools do not expose a `.name` field. Governance policies must matc
 by tool description content (or tool map key in wrapper context), not by strict
 framework-level tool name.
 
+## LangChain Blocking Model
+
+LangChain callback `handleToolStart` cannot preempt execution by return value, so
+this SDK applies a two-layer model:
+
+- callback layer (`AssemblyCallbackHandler`) tracks deferred denials and redacts at `handleToolEnd`
+- wrapper layer (`wrapToolWithAssembly`) enforces true pre-execution deny/pending checks
+
+`initAssembly()` auto-registers the callback handler and auto-wraps configured
+LangChain tools.
+
 ## Current Architecture Layout
 
 ```text
@@ -35,6 +46,9 @@ src/
   adapters/
     adapter.ts
     adapter-registry.ts
+    langchain/
+      assembly-callback-handler.ts
+      wrap-tool-with-assembly.ts
   gateway/
     client.ts
   wrappers/
@@ -45,6 +59,8 @@ src/
     assembly-mode.ts
     assembly-config.ts
     assembly-context.ts
+    gateway-governance.ts
+    langchain-adapter.ts
     tool-map.ts
 tests/
   architecture/
