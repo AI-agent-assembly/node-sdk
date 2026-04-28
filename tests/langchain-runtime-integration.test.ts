@@ -80,7 +80,7 @@ describe("LangChain runtime integration", () => {
     expect(toolFunc).not.toHaveBeenCalled();
   });
 
-  it("applies pre-execution DENY during AgentExecutor tool attempt", async () => {
+  it("propagates blocked tool error cleanly through AgentExecutor output", async () => {
     const gateway = createGatewayMock();
     gateway.check = vi.fn(async () => ({ denied: true, reason: "blocked-by-policy" }));
     const toolFunc = vi.fn(async (input: string) => `echo:${input}`);
@@ -88,7 +88,8 @@ describe("LangChain runtime integration", () => {
     const dynamicTool = new DynamicTool({
       name: "blocked_tool",
       description: "Blocked operation",
-      func: toolFunc
+      func: toolFunc,
+      returnDirect: true
     });
 
     const wrappedTool = wrapToolWithAssembly(dynamicTool, gateway, {
@@ -96,16 +97,15 @@ describe("LangChain runtime integration", () => {
     });
 
     const llm = new FakeStreamingLLM({
-      responses: [
-        "Thought: I should use a tool.\nAction: blocked_tool\nAction Input: secret",
-        "Final Answer: unreachable"
-      ]
+      responses: ["Thought: I should use a tool.\nAction: blocked_tool\nAction Input: secret"]
     });
 
     const executor = await initializeAgentExecutorWithOptions([wrappedTool], llm, {
       agentType: "zero-shot-react-description",
-      maxIterations: 2,
-      returnIntermediateSteps: true
+      maxIterations: 1,
+      returnIntermediateSteps: true,
+      handleToolRuntimeErrors: (error) =>
+        error instanceof Error ? error.message : String(error)
     });
 
     const result = await executor.invoke(
@@ -113,15 +113,16 @@ describe("LangChain runtime integration", () => {
       { callbacks: [new AssemblyCallbackHandler(gateway)], runId: "run-agent-denied" }
     );
 
+    expect(result.output).toContain("Tool 'blocked_tool' blocked: blocked-by-policy");
     expect(result).toEqual(
       expect.objectContaining({
-        output: "unreachable",
         intermediateSteps: [
           expect.objectContaining({
             action: expect.objectContaining({
               tool: "blocked_tool",
               toolInput: "secret"
-            })
+            }),
+            observation: expect.stringContaining("Tool 'blocked_tool' blocked: blocked-by-policy")
           })
         ]
       })
