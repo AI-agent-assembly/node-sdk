@@ -32,3 +32,6 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
+
+      - name: Validate generated native types
+        run: pnpm native:check-types

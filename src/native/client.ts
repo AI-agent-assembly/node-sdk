@@ -104,13 +104,22 @@ export function createNativeClient(options: InitAssemblyOptions): NativeClient {
   const socketPath = options.gateway;
 
   let handlePromise: Promise<object> | undefined;
+  let activeHandle: object | undefined;
+  let pendingSendError: Error | undefined;
 
   const getHandle = async (): Promise<object> => {
     if (!handlePromise) {
-      handlePromise = binding.connect(socketPath).catch((error: unknown) => {
-        handlePromise = undefined;
-        throw mapNativeError(error);
-      });
+      handlePromise = binding
+        .connect(socketPath)
+        .then((handle) => {
+          activeHandle = handle;
+          return handle;
+        })
+        .catch((error: unknown) => {
+          handlePromise = undefined;
+          activeHandle = undefined;
+          throw mapNativeError(error);
+        });
     }
     return handlePromise;
   };
@@ -118,6 +127,12 @@ export function createNativeClient(options: InitAssemblyOptions): NativeClient {
   return {
     mode,
     close: async () => {
+      if (pendingSendError) {
+        const error = pendingSendError;
+        pendingSendError = undefined;
+        throw error;
+      }
+
       if (!handlePromise) {
         return;
       }
@@ -127,17 +142,33 @@ export function createNativeClient(options: InitAssemblyOptions): NativeClient {
         throw mapNativeError(error);
       });
       handlePromise = undefined;
+      activeHandle = undefined;
     },
     sendEvent: (event: unknown) => {
+      if (activeHandle) {
+        try {
+          binding.sendEvent(activeHandle, event);
+        } catch (error) {
+          pendingSendError = mapNativeError(error);
+        }
+        return;
+      }
+
       void getHandle()
         .then((handle) => {
           binding.sendEvent(handle, event);
         })
         .catch((error: unknown) => {
-          throw mapNativeError(error);
+          pendingSendError = mapNativeError(error);
         });
     },
     queryPolicy: async (action: unknown) => {
+      if (pendingSendError) {
+        const error = pendingSendError;
+        pendingSendError = undefined;
+        throw error;
+      }
+
       const handle = await getHandle();
       return binding.queryPolicy(handle, action).catch((error: unknown) => {
         throw mapNativeError(error);

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use napi::bindgen_prelude::{Error, Result};
 use napi_derive::napi;
 use serde_json::Value;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::mpsc;
 
 const ERR_CONNECT: &str = "AA_ERR_CONNECT";
 const ERR_SEND_EVENT: &str = "AA_ERR_SEND_EVENT";
@@ -14,8 +14,8 @@ const ERR_DISCONNECT: &str = "AA_ERR_DISCONNECT";
 struct ClientState {
   socket_path: String,
   closed: AtomicBool,
-  event_tx: Mutex<Option<mpsc::UnboundedSender<Value>>>,
-  event_loop: Mutex<Option<tokio::task::JoinHandle<()>>>,
+  event_tx: std::sync::Mutex<Option<mpsc::UnboundedSender<Value>>>,
+  event_loop: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 #[napi]
@@ -49,8 +49,8 @@ pub async fn connect(socket_path: String) -> Result<ClientHandle> {
     inner: Arc::new(ClientState {
       socket_path,
       closed: AtomicBool::new(false),
-      event_tx: Mutex::new(Some(event_tx)),
-      event_loop: Mutex::new(Some(loop_handle)),
+      event_tx: std::sync::Mutex::new(Some(event_tx)),
+      event_loop: std::sync::Mutex::new(Some(loop_handle)),
     }),
   })
 }
@@ -67,8 +67,8 @@ pub fn send_event(handle: &ClientHandle, event: Value) -> Result<()> {
   let send_result = handle
     .inner
     .event_tx
-    .try_lock()
-    .map_err(|_| typed_error(ERR_SEND_EVENT, "event queue lock unavailable"))?
+    .lock()
+    .map_err(|_| typed_error(ERR_SEND_EVENT, "event queue lock poisoned"))?
     .as_ref()
     .ok_or_else(|| typed_error(ERR_SEND_EVENT, "event queue has been closed"))?
     .send(event);
@@ -109,9 +109,21 @@ pub async fn disconnect(handle: &ClientHandle) -> Result<()> {
     return Ok(());
   }
 
-  handle.inner.event_tx.lock().await.take();
+  handle
+    .inner
+    .event_tx
+    .lock()
+    .map_err(|_| typed_error(ERR_DISCONNECT, "event queue lock poisoned"))?
+    .take();
 
-  if let Some(event_loop) = handle.inner.event_loop.lock().await.take() {
+  let event_loop = handle
+    .inner
+    .event_loop
+    .lock()
+    .map_err(|_| typed_error(ERR_DISCONNECT, "event loop lock poisoned"))?
+    .take();
+
+  if let Some(event_loop) = event_loop {
     event_loop
       .await
       .map_err(|err| typed_error(ERR_DISCONNECT, &format!("event loop join error: {err}")))?;
