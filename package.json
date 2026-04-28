@@ -20,6 +20,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "native:build": "pnpm exec napi build --manifest-path native/aa-ffi-node/Cargo.toml --output-dir native/aa-ffi-node --no-js --dts index.d.ts --js-package-name @agent-assembly/sdk",
+    "native:build:release": "pnpm exec napi build --manifest-path native/aa-ffi-node/Cargo.toml --output-dir native/aa-ffi-node --release --platform --no-js --dts index.d.ts --js-package-name @agent-assembly/sdk",
+    "native:check-types": "tsc --strict --noEmit native/aa-ffi-node/index.d.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
@@ -30,8 +33,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",
+    "@napi-rs/cli": "^3.6.2",
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^2.1.8",
+    "blocked-at": "^1.2.0",
     "eslint": "^9.24.0",
     "langchain": "^0.3.27",
     "prettier": "^3.5.3",
