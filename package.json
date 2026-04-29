@@ -17,6 +17,13 @@
     "url": "https://github.com/AI-agent-assembly/node-sdk/issues"
   },
   "homepage": "https://github.com/AI-agent-assembly/node-sdk#readme",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
