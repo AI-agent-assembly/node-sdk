@@ -11,17 +11,22 @@ describe("packaging npm pack contents", () => {
   it("excludes source files and includes dist output", () => {
     execSync("pnpm run build", { stdio: "pipe" });
 
+    const packDir = fs.mkdtempSync(path.resolve(process.cwd(), ".pack-"));
+
     const packEntries = JSON.parse(
-      execSync("npm pack --json --ignore-scripts --cache ./.npm-cache", {
+      execSync(
+        `npm pack --json --ignore-scripts --cache ./.npm-cache --pack-destination ${packDir}`,
+        {
         encoding: "utf8",
         stdio: "pipe"
-      })
+        }
+      )
     ) as NpmPackEntry[];
 
     const tarballName = packEntries[0]?.filename;
     expect(tarballName).toBeTruthy();
 
-    const tarballPath = path.resolve(process.cwd(), tarballName!);
+    const tarballPath = path.resolve(packDir, tarballName!);
     const packedFiles = execSync(`tar -tf ${tarballPath}`, {
       encoding: "utf8",
       stdio: "pipe"
@@ -39,6 +44,6 @@ describe("packaging npm pack contents", () => {
       packedFiles.some((entry) => entry.startsWith("package/tests/"))
     ).toBe(false);
 
-    fs.rmSync(tarballPath, { force: true });
+    fs.rmSync(packDir, { recursive: true, force: true });
   });
 });

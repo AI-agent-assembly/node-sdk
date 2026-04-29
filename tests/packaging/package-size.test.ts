@@ -13,21 +13,26 @@ describe("packaging size budget", () => {
   it("keeps packed artifact under 5MB", () => {
     execSync("pnpm run build", { stdio: "pipe" });
 
+    const packDir = fs.mkdtempSync(path.resolve(process.cwd(), ".pack-"));
+
     const packEntries = JSON.parse(
-      execSync("npm pack --json --ignore-scripts --cache ./.npm-cache", {
+      execSync(
+        `npm pack --json --ignore-scripts --cache ./.npm-cache --pack-destination ${packDir}`,
+        {
         encoding: "utf8",
         stdio: "pipe"
-      })
+        }
+      )
     ) as NpmPackEntry[];
 
     const tarballName = packEntries[0]?.filename;
     expect(tarballName).toBeTruthy();
 
-    const tarballPath = path.resolve(process.cwd(), tarballName!);
+    const tarballPath = path.resolve(packDir, tarballName!);
     const tarballStat = fs.statSync(tarballPath);
 
     expect(tarballStat.size).toBeLessThan(MAX_PACKAGE_BYTES);
 
-    fs.rmSync(tarballPath, { force: true });
+    fs.rmSync(packDir, { recursive: true, force: true });
   });
 });
