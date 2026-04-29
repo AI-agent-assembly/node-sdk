@@ -2,16 +2,19 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
+import { withPackagingLock } from "./lock";
 
 describe("packaging esm resolution", () => {
   it("resolves the ESM entry from the built output", async () => {
-    execSync("pnpm run build:esm", { stdio: "pipe" });
+    await withPackagingLock(async () => {
+      execSync("pnpm run build:esm", { stdio: "pipe" });
 
-    const moduleUrl = pathToFileURL(
-      path.resolve(process.cwd(), "dist/esm/index.js")
-    ).href;
-    const module = await import(moduleUrl);
+      const moduleUrl = pathToFileURL(
+        path.resolve(process.cwd(), "dist/esm/index.js")
+      ).href;
+      const module = await import(moduleUrl);
 
-    expect(typeof module.initAssembly).toBe("function");
+      expect(typeof module.initAssembly).toBe("function");
+    });
   });
 });
