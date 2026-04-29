@@ -18,4 +18,6 @@ export declare function queryPolicy(handle: ClientHandle, action: any): Promise<
 
 export declare function sendEvent(handle: ClientHandle, event: any): void
 
+export declare function setEventListener(handle: ClientHandle, callback: (arg: string) => void): void
+
 export declare function socketPath(handle: ClientHandle): string

@@ -1,7 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use napi::bindgen_prelude::{Error, Result};
+use napi::bindgen_prelude::{Error, Function, Result};
+use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi_derive::napi;
 use serde_json::Value;
 use tokio::sync::mpsc;
@@ -10,12 +11,16 @@ const ERR_CONNECT: &str = "AA_ERR_CONNECT";
 const ERR_SEND_EVENT: &str = "AA_ERR_SEND_EVENT";
 const ERR_QUERY_POLICY: &str = "AA_ERR_QUERY_POLICY";
 const ERR_DISCONNECT: &str = "AA_ERR_DISCONNECT";
+const ERR_SET_EVENT_LISTENER: &str = "AA_ERR_SET_EVENT_LISTENER";
+
+type EventSink = ThreadsafeFunction<String, (), String, napi::Status, false, false, 0>;
 
 struct ClientState {
   socket_path: String,
   closed: AtomicBool,
   event_tx: std::sync::Mutex<Option<mpsc::UnboundedSender<Value>>>,
   event_loop: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
+  event_sink: std::sync::Mutex<Option<EventSink>>,
 }
 
 #[napi]
@@ -38,21 +43,35 @@ pub async fn connect(socket_path: String) -> Result<ClientHandle> {
 
   let (event_tx, mut event_rx) = mpsc::unbounded_channel::<Value>();
 
+  let state = Arc::new(ClientState {
+    socket_path,
+    closed: AtomicBool::new(false),
+    event_tx: std::sync::Mutex::new(Some(event_tx)),
+    event_loop: std::sync::Mutex::new(None),
+    event_sink: std::sync::Mutex::new(None),
+  });
+
+  let state_for_loop = Arc::clone(&state);
+
   // Simulate an always-on IPC pump. The task yields each iteration so JS stays non-blocking.
   let loop_handle = tokio::spawn(async move {
-    while event_rx.recv().await.is_some() {
+    while let Some(event) = event_rx.recv().await {
+      if let Ok(payload) = serde_json::to_string(&event) {
+        if let Ok(guard) = state_for_loop.event_sink.lock() {
+          if let Some(sink) = guard.as_ref() {
+            let _ = sink.call(payload, ThreadsafeFunctionCallMode::NonBlocking);
+          }
+        }
+      }
       tokio::task::yield_now().await;
     }
   });
 
-  Ok(ClientHandle {
-    inner: Arc::new(ClientState {
-      socket_path,
-      closed: AtomicBool::new(false),
-      event_tx: std::sync::Mutex::new(Some(event_tx)),
-      event_loop: std::sync::Mutex::new(Some(loop_handle)),
-    }),
-  })
+  if let Ok(mut guard) = state.event_loop.lock() {
+    *guard = Some(loop_handle);
+  }
+
+  Ok(ClientHandle { inner: state })
 }
 
 #[napi]
@@ -128,6 +147,23 @@ pub async fn disconnect(handle: &ClientHandle) -> Result<()> {
       .await
       .map_err(|err| typed_error(ERR_DISCONNECT, &format!("event loop join error: {err}")))?;
   }
+
+  Ok(())
+}
+
+#[napi]
+pub fn set_event_listener(handle: &ClientHandle, callback: Function<'_, String, ()>) -> Result<()> {
+  let sink = callback
+    .build_threadsafe_function::<String>()
+    .build()
+    .map_err(|err| typed_error(ERR_SET_EVENT_LISTENER, &err.to_string()))?;
+
+  let mut guard = handle
+    .inner
+    .event_sink
+    .lock()
+    .map_err(|_| typed_error(ERR_SET_EVENT_LISTENER, "event sink lock poisoned"))?;
+  *guard = Some(sink);
 
   Ok(())
 }
