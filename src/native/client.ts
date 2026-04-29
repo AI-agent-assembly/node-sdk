@@ -14,6 +14,14 @@ interface NativeBinding {
   disconnect: (handle: object) => Promise<void>;
 }
 
+const NATIVE_BINDING_SINGLETON_KEY = Symbol.for(
+  "@agent-assembly/sdk/native-binding"
+);
+
+interface GlobalWithNativeBinding {
+  [NATIVE_BINDING_SINGLETON_KEY]?: NativeBinding;
+}
+
 const ERROR_CONNECT = "AA_ERR_CONNECT";
 const ERROR_SEND_EVENT = "AA_ERR_SEND_EVENT";
 const ERROR_QUERY_POLICY = "AA_ERR_QUERY_POLICY";
@@ -67,6 +75,13 @@ function mapNativeError(error: unknown): Error {
 }
 
 function loadNativeBinding(): NativeBinding {
+  const globalObject = globalThis as GlobalWithNativeBinding;
+  const cachedBinding = globalObject[NATIVE_BINDING_SINGLETON_KEY];
+
+  if (cachedBinding) {
+    return cachedBinding;
+  }
+
   const requireFromHere = createRequire(import.meta.url);
   const candidates = [
     "../../native/aa-ffi-node/index.cjs",
@@ -77,7 +92,9 @@ function loadNativeBinding(): NativeBinding {
   let lastError: unknown;
   for (const candidate of candidates) {
     try {
-      return requireFromHere(candidate) as NativeBinding;
+      const binding = requireFromHere(candidate) as NativeBinding;
+      globalObject[NATIVE_BINDING_SINGLETON_KEY] = binding;
+      return binding;
     } catch (error) {
       lastError = error;
     }
