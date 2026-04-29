@@ -61,6 +61,7 @@
     "nodejs"
   ],
   "optionalDependencies": {
-    "@agent-assembly/linux-x64-gnu": "0.0.0"
+    "@agent-assembly/linux-x64-gnu": "0.0.0",
+    "@agent-assembly/darwin-x64": "0.0.0"
   }
 }
