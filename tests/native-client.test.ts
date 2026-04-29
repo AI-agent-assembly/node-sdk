@@ -183,6 +183,49 @@ describe("createNativeClient", () => {
     await expect(client.close()).rejects.toBeInstanceOf(mod.NativeDisconnectError);
   });
 
+  it("returns immediately on close when native client was never connected", async () => {
+    const binding = {
+      connect: vi.fn(async () => ({ id: "unused" })),
+      sendEvent: vi.fn(() => undefined),
+      queryPolicy: vi.fn(async () => ({ denied: false, pending: false })),
+      disconnect: vi.fn(async () => undefined)
+    } satisfies MockBinding;
+
+    const mod = await loadNativeClientWithBinding(() => binding);
+    const client = mod.createNativeClient({
+      gateway: "/tmp/aa.sock",
+      apiKey: "test-key",
+      mode: "napi-inprocess"
+    });
+
+    await expect(client.close()).resolves.toBeUndefined();
+    expect(binding.connect).not.toHaveBeenCalled();
+    expect(binding.disconnect).not.toHaveBeenCalled();
+  });
+
+  it("surfaces deferred send error on close", async () => {
+    const binding = {
+      connect: vi.fn(async () => ({ id: "handle-6" })),
+      sendEvent: vi.fn(() => {
+        throw new Error("AA_ERR_SEND_EVENT:queue closed");
+      }),
+      queryPolicy: vi.fn(async () => ({ denied: false, pending: false })),
+      disconnect: vi.fn(async () => undefined)
+    } satisfies MockBinding;
+
+    const mod = await loadNativeClientWithBinding(() => binding);
+    const client = mod.createNativeClient({
+      gateway: "/tmp/aa.sock",
+      apiKey: "test-key",
+      mode: "napi-inprocess"
+    });
+
+    await client.queryPolicy({ action: "warmup" });
+    client.sendEvent({ action: "tool_call" });
+
+    await expect(client.close()).rejects.toBeInstanceOf(mod.NativeSendEventError);
+  });
+
   it("tries known native binding paths and succeeds on fallback path", async () => {
     const binding = {
       connect: vi.fn(async () => ({ id: "handle-5" })),
