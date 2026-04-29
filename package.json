@@ -65,5 +65,14 @@
     "@agent-assembly/darwin-x64": "0.0.0",
     "@agent-assembly/darwin-arm64": "0.0.0",
     "@agent-assembly/win32-x64-msvc": "0.0.0"
-  }
+  },
+  "files": [
+    "dist/",
+    "native/aa-ffi-node/*.node",
+    "native/aa-ffi-node/index.cjs",
+    "native/aa-ffi-node/index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "types": "./dist/types/index.d.ts"
 }
