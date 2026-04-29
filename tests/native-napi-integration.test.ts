@@ -4,8 +4,14 @@ import blockedAt from "blocked-at";
 import { describe, expect, it } from "vitest";
 import { NativeConnectError, createNativeClient } from "../src/native/client.js";
 
-const ADDON_PATH = resolve(process.cwd(), "native/aa-ffi-node/index.node");
-const RUN_NATIVE_TESTS = process.env.AA_NATIVE_TEST === "1" && existsSync(ADDON_PATH);
+const NATIVE_ADDON_DIR = resolve(process.cwd(), "native/aa-ffi-node");
+const RUN_NATIVE_TESTS =
+  process.env.AA_NATIVE_TEST === "1" &&
+  (existsSync(resolve(NATIVE_ADDON_DIR, "index.node")) ||
+    existsSync(resolve(NATIVE_ADDON_DIR, "index.darwin-arm64.node")) ||
+    existsSync(resolve(NATIVE_ADDON_DIR, "index.darwin-x64.node")) ||
+    existsSync(resolve(NATIVE_ADDON_DIR, "index.linux-x64-gnu.node")) ||
+    existsSync(resolve(NATIVE_ADDON_DIR, "index.win32-x64-msvc.node")));
 
 const describeNative = RUN_NATIVE_TESTS ? describe : describe.skip;
 
