@@ -76,8 +76,11 @@ function mapNativeError(error: unknown): Error {
 }
 
 function loadNativeBinding(): NativeBinding {
+  const shouldUseCache = process.env.VITEST !== "true";
   const globalObject = globalThis as GlobalWithNativeBinding;
-  const cachedBinding = globalObject[NATIVE_BINDING_SINGLETON_KEY];
+  const cachedBinding = shouldUseCache
+    ? globalObject[NATIVE_BINDING_SINGLETON_KEY]
+    : undefined;
 
   if (cachedBinding) {
     return cachedBinding;
@@ -96,7 +99,9 @@ function loadNativeBinding(): NativeBinding {
   for (const candidate of candidates) {
     try {
       const binding = requireFromHere(candidate) as NativeBinding;
-      globalObject[NATIVE_BINDING_SINGLETON_KEY] = binding;
+      if (shouldUseCache) {
+        globalObject[NATIVE_BINDING_SINGLETON_KEY] = binding;
+      }
       return binding;
     } catch (error) {
       lastError = error;
