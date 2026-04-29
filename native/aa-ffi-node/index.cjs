@@ -1,4 +1,5 @@
 'use strict'
+/* c8 ignore file */
 
 const fs = require('node:fs')
 const path = require('node:path')

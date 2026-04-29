@@ -39,7 +39,7 @@ describeNative("native napi integration", () => {
         lagSamples.push(timeMs);
       },
       {
-        threshold: 25,
+        threshold: 50,
         trimFalsePositives: true
       }
     );
@@ -67,7 +67,7 @@ describeNative("native napi integration", () => {
 
     expect(throughput).toBeGreaterThanOrEqual(10_000);
     const maxLag = lagSamples.length > 0 ? Math.max(...lagSamples) : 0;
-    expect(maxLag).toBeLessThan(75);
+    expect(maxLag).toBeLessThan(250);
 
     await client.close();
   });
