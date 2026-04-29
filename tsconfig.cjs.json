@@ -1,11 +1,15 @@
 {
-  "extends": "./tsconfig.build.json",
+  "extends": "./tsconfig.json",
   "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist/cjs",
+    "types": ["node"],
     "module": "CommonJS",
     "moduleResolution": "Node",
-    "outDir": "./dist/cjs",
     "declaration": false,
     "declarationMap": false,
     "sourceMap": false
-  }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["tests/**/*.ts"]
 }
