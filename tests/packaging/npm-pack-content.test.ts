@@ -12,7 +12,7 @@ describe("packaging npm pack contents", () => {
     execSync("pnpm run build", { stdio: "pipe" });
 
     const packEntries = JSON.parse(
-      execSync("npm pack --json --ignore-scripts", {
+      execSync("npm pack --json --ignore-scripts --cache ./.npm-cache", {
         encoding: "utf8",
         stdio: "pipe"
       })
