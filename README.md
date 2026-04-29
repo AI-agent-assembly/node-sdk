@@ -66,3 +66,20 @@ tests/
   architecture/
 .github/workflows/
 ```
+
+## Native napi-rs Binding (AAASM-60)
+
+The `aa-ffi-node` Rust crate is located at `native/aa-ffi-node`.
+
+Build commands:
+
+- `pnpm native:build` (debug/local)
+- `pnpm native:build:release` (release + platform artifact)
+- `pnpm native:check-types` (strict check for generated napi `.d.ts`)
+
+Native integration acceptance test:
+
+- `AA_NATIVE_TEST=1 pnpm vitest run tests/native-napi-integration.test.ts`
+
+The `build-addon` GitHub workflow produces prebuilt `index.node` artifacts
+for Node 18/20/22 on Linux/macOS/Windows.

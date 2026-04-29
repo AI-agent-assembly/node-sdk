@@ -1,0 +1,19 @@
+[package]
+name = "aa-ffi-node"
+version = "0.0.0"
+edition = "2021"
+description = "napi-rs binding layer for Agent Assembly Node SDK"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3", default-features = false, features = ["napi8", "tokio_rt", "serde-json"] }
+napi-derive = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
+
+[build-dependencies]
+napi-build = "2"
