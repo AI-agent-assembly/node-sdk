@@ -35,7 +35,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --coverage.reporter=lcov --coverage.reporter=text",
     "build:esm": "tsc -p tsconfig.build.json",
-    "build:cjs": "tsc -p tsconfig.cjs.json"
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "postinstall": "node ./scripts/postinstall.mjs"
   },
   "dependencies": {
     "@langchain/core": "^0.3.80"
