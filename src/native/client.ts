@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import path from "node:path";
 import type { InitAssemblyOptions } from "../types/policy.js";
 
 export interface PolicyResult {
@@ -82,7 +83,9 @@ function loadNativeBinding(): NativeBinding {
     return cachedBinding;
   }
 
-  const requireFromHere = createRequire(import.meta.url);
+  const requireFromHere = createRequire(
+    path.resolve(process.cwd(), "package.json")
+  );
   const candidates = [
     "../../native/aa-ffi-node/index.cjs",
     "../../../native/aa-ffi-node/index.cjs",
