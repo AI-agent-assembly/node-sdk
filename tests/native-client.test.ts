@@ -98,6 +98,45 @@ describe("createNativeClient", () => {
     await expect(client.queryPolicy({ action: "check" })).rejects.toBeInstanceOf(mod.NativeConnectError);
   });
 
+  it("maps non-Error connect failures to a generic Error", async () => {
+    const mod = await loadNativeClientWithBinding(() => ({
+      connect: vi.fn(async () => {
+        throw "broken-connect";
+      }),
+      sendEvent: vi.fn(() => undefined),
+      queryPolicy: vi.fn(async () => ({ denied: false })),
+      disconnect: vi.fn(async () => undefined)
+    }));
+
+    const client = mod.createNativeClient({
+      gateway: "/tmp/aa.sock",
+      apiKey: "test-key",
+      mode: "napi-inprocess"
+    });
+
+    await expect(client.queryPolicy({ action: "check" })).rejects.toThrow("broken-connect");
+  });
+
+  it("returns original Error when native error code is unknown", async () => {
+    const unknownError = new Error("AA_ERR_UNKNOWN:unexpected");
+    const mod = await loadNativeClientWithBinding(() => ({
+      connect: vi.fn(async () => {
+        throw unknownError;
+      }),
+      sendEvent: vi.fn(() => undefined),
+      queryPolicy: vi.fn(async () => ({ denied: false })),
+      disconnect: vi.fn(async () => undefined)
+    }));
+
+    const client = mod.createNativeClient({
+      gateway: "/tmp/aa.sock",
+      apiKey: "test-key",
+      mode: "napi-inprocess"
+    });
+
+    await expect(client.queryPolicy({ action: "check" })).rejects.toBe(unknownError);
+  });
+
   it("surfaces deferred sendEvent failure on next queryPolicy call", async () => {
     const binding = {
       connect: vi.fn(async () => ({ id: "handle-2" })),
@@ -255,5 +294,21 @@ describe("createNativeClient", () => {
       denied: false,
       pending: false
     });
+  });
+
+  it("throws NativeConnectError when native binding cannot be loaded from known paths", async () => {
+    const mod = await loadNativeClientWithRequire(() => {
+      return () => {
+        throw new Error("module not found");
+      };
+    });
+
+    expect(() =>
+      mod.createNativeClient({
+        gateway: "/tmp/aa.sock",
+        apiKey: "test-key",
+        mode: "napi-inprocess"
+      })
+    ).toThrow(mod.NativeConnectError);
   });
 });
