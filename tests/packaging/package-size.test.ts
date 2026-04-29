@@ -1,0 +1,33 @@
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+interface NpmPackEntry {
+  filename: string;
+}
+
+const MAX_PACKAGE_BYTES = 5 * 1024 * 1024;
+
+describe("packaging size budget", () => {
+  it("keeps packed artifact under 5MB", () => {
+    execSync("pnpm run build", { stdio: "pipe" });
+
+    const packEntries = JSON.parse(
+      execSync("npm pack --json --ignore-scripts", {
+        encoding: "utf8",
+        stdio: "pipe"
+      })
+    ) as NpmPackEntry[];
+
+    const tarballName = packEntries[0]?.filename;
+    expect(tarballName).toBeTruthy();
+
+    const tarballPath = path.resolve(process.cwd(), tarballName!);
+    const tarballStat = fs.statSync(tarballPath);
+
+    expect(tarballStat.size).toBeLessThan(MAX_PACKAGE_BYTES);
+
+    fs.rmSync(tarballPath, { force: true });
+  });
+});
