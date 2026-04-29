@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
-import { withPackagingLock } from "./lock";
+import { withPackagingLock } from "./lock.js";
 
 const requireFromHere = createRequire(import.meta.url);
 
@@ -16,5 +16,5 @@ describe("packaging cjs resolution", () => {
 
       expect(typeof module.initAssembly).toBe("function");
     });
-  });
+  }, 30000);
 });

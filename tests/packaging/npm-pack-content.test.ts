@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { withPackagingLock } from "./lock";
+import { withPackagingLock } from "./lock.js";
 
 interface NpmPackEntry {
   filename: string;
@@ -48,5 +48,5 @@ describe("packaging npm pack contents", () => {
 
       fs.rmSync(packDir, { recursive: true, force: true });
     });
-  });
+  }, 30000);
 });

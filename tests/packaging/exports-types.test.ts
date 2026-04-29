@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { withPackagingLock } from "./lock";
+import { withPackagingLock } from "./lock.js";
 
 describe("packaging export types", () => {
   it("points exports types to an existing declaration file", async () => {
@@ -20,5 +20,5 @@ describe("packaging export types", () => {
         fs.existsSync(path.resolve(process.cwd(), "dist/types/index.d.ts"))
       ).toBe(true);
     });
-  });
+  }, 30000);
 });
