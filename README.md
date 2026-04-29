@@ -83,3 +83,20 @@ Native integration acceptance test:
 
 The `build-addon` GitHub workflow produces prebuilt `index.node` artifacts
 for Node 18/20/22 on Linux/macOS/Windows.
+
+## Packaging Layout (AAASM-61)
+
+The package now publishes dual module outputs with explicit conditional exports:
+
+- ESM entry: `./dist/esm/index.js`
+- CJS entry: `./dist/cjs/index.js`
+- Type declarations: `./dist/types/index.d.ts`
+
+Platform-native binaries are declared via `optionalDependencies` and selected
+during `postinstall` based on `process.platform` and `process.arch`.
+
+Package verification checks include:
+
+- ESM and CJS entry smoke tests
+- export `types` mapping assertion
+- `npm pack` content and package size guard tests
