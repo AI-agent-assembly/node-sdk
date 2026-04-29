@@ -9,4 +9,14 @@ export function detectPlatformKey(platform = process.platform, arch = process.ar
   return SUPPORTED_PLATFORM_KEYS[`${platform}-${arch}`] ?? null;
 }
 
+export function resolveBinaryPackageName(platform = process.platform, arch = process.arch) {
+  const platformKey = detectPlatformKey(platform, arch);
+
+  if (!platformKey) {
+    return null;
+  }
+
+  return `@agent-assembly/${platformKey}`;
+}
+
 // TODO(AAASM-61): postinstall resolution flow will be implemented in follow-up commit.
