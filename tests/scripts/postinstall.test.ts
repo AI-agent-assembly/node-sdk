@@ -137,6 +137,35 @@ describe("postinstall script", () => {
     );
   });
 
+  it("stringifies non-Error throwables when logging postinstall failure", () => {
+    const cwd = createTempDir();
+    seedPlatformPackage(cwd, "@agent-assembly/linux-x64-gnu", { withBinary: true });
+
+    const logger = {
+      info: vi.fn(),
+      warn: vi.fn()
+    };
+
+    const copySpy = vi.spyOn(fs, "copyFileSync").mockImplementation(() => {
+      throw "raw-failure";
+    });
+
+    const ok = runPostinstall({
+      platform: "linux",
+      arch: "x64",
+      cwd,
+      logger,
+    });
+
+    expect(ok).toBe(false);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "[agent-assembly] Failed to select native binary: raw-failure"
+    );
+
+    copySpy.mockRestore();
+  });
+
   it("detects direct execution and runs entrypoint only in main mode", () => {
     const modulePath = path.resolve("tmp-postinstall-entrypoint.mjs");
     const moduleUrl = pathToFileURL(modulePath).href;
