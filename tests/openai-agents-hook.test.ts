@@ -237,6 +237,35 @@ describe("openai agents adapter", () => {
       output: { ok: true }
     });
   });
+
+  it("fails open and executes original tool when gateway check throws", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => {
+      throw new Error("gateway unavailable");
+    });
+    const originalRunTool = vi.fn(async () => ({ ok: "fallback-path" }));
+
+    const hooks = await import("../src/hooks/openai-agents.js");
+    const patchedRunTool = hooks.createPatchedRunTool(originalRunTool, gateway, {
+      fallbackRunId: "fallback-run",
+      approvalTimeoutMs: 4_000
+    });
+
+    const result = await patchedRunTool(
+      {
+        function: {
+          name: "critical_tool",
+          arguments: "{\"x\":1}"
+        }
+      },
+      {
+        runId: "run-6"
+      }
+    );
+
+    expect(result).toEqual({ ok: "fallback-path" });
+    expect(originalRunTool).toHaveBeenCalledTimes(1);
+  });
 });
 async function resetPatchState() {
   const hooks = await import("../src/hooks/openai-agents.js");
