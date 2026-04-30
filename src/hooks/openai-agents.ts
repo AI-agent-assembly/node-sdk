@@ -179,9 +179,13 @@ async function loadAgentClassFromSdk(): Promise<OpenAIAgentsAgentClass | undefin
     return undefined;
   }
 
-  const moduleName = "@openai/agents";
-  const module = (await import(moduleName)) as { Agent?: OpenAIAgentsAgentClass };
-  return module.Agent;
+  try {
+    const moduleName = "@openai/agents";
+    const module = (await import(moduleName)) as { Agent?: OpenAIAgentsAgentClass };
+    return module.Agent;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function patchOpenAIAgents(
