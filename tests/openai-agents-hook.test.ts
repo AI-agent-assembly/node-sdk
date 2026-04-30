@@ -136,6 +136,39 @@ describe("openai agents adapter", () => {
     );
     expect(originalRunTool).toHaveBeenCalledTimes(1);
   });
+
+  it("returns approval error output when PENDING is denied", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ pending: true, denied: false }));
+    gateway.waitForApproval = vi.fn(async () => ({
+      denied: true,
+      reason: "manual reviewer rejected"
+    }));
+    const originalRunTool = vi.fn(async () => ({ ok: true }));
+
+    const hooks = await import("../src/hooks/openai-agents.js");
+    const patchedRunTool = hooks.createPatchedRunTool(originalRunTool, gateway, {
+      fallbackRunId: "fallback-run",
+      approvalTimeoutMs: 1_000
+    });
+
+    const result = await patchedRunTool(
+      {
+        function: {
+          name: "delete_account",
+          arguments: "{\"id\":\"u1\"}"
+        }
+      },
+      {
+        runId: "run-3"
+      }
+    );
+
+    expect(result).toEqual({
+      error: "Approval denied: manual reviewer rejected"
+    });
+    expect(originalRunTool).not.toHaveBeenCalled();
+  });
 });
 async function resetPatchState() {
   const hooks = await import("../src/hooks/openai-agents.js");
