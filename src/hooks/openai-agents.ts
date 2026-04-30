@@ -1,7 +1,8 @@
 import type {
   OpenAIAgentsRunContext,
   OpenAIAgentsRunTool,
-  OpenAIAgentsToolCall
+  OpenAIAgentsToolCall,
+  OpenAIAgentsToolCallOutput
 } from "../types/openai-agents-adapter.js";
 
 export interface OpenAIAgentsAgentClass {
@@ -55,4 +56,12 @@ export function extractToolCallContextMetadata(
     agentId: context?.agentId ?? undefined,
     runId: context?.runId ?? undefined
   };
+}
+
+export function formatDeniedToolCallOutput(
+  reason: string | undefined,
+  prefix: string
+): OpenAIAgentsToolCallOutput {
+  const detail = reason?.trim() ? reason : "denied";
+  return { error: `${prefix}: ${detail}` };
 }
