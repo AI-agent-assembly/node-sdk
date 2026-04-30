@@ -219,6 +219,24 @@ describe("openai agents adapter", () => {
       runId: undefined
     });
   });
+
+  it("records results in fire-and-forget mode without surfacing recorder failures", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.recordResult = vi.fn(async () => {
+      throw new Error("recording failed");
+    });
+    const hooks = await import("../src/hooks/openai-agents.js");
+
+    expect(() =>
+      hooks.recordToolResultNonBlocking(gateway, "run-5", { ok: true })
+    ).not.toThrow();
+
+    await Promise.resolve();
+    expect(gateway.recordResult).toHaveBeenCalledWith({
+      runId: "run-5",
+      output: { ok: true }
+    });
+  });
 });
 async function resetPatchState() {
   const hooks = await import("../src/hooks/openai-agents.js");
