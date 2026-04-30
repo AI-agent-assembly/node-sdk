@@ -17,8 +17,15 @@
     "url": "https://github.com/AI-agent-assembly/node-sdk/issues"
   },
   "homepage": "https://github.com/AI-agent-assembly/node-sdk#readme",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "pnpm run build:esm && pnpm run build:cjs",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "native:build": "pnpm exec napi build --manifest-path native/aa-ffi-node/Cargo.toml --output-dir native/aa-ffi-node --no-js --dts index.d.ts --js-package-name @agent-assembly/sdk",
     "native:build:release": "pnpm exec napi build --manifest-path native/aa-ffi-node/Cargo.toml --output-dir native/aa-ffi-node --release --platform --no-js --dts index.d.ts --js-package-name @agent-assembly/sdk",
@@ -26,7 +33,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage --coverage.reporter=lcov --coverage.reporter=text"
+    "test:coverage": "vitest run --coverage --coverage.reporter=lcov --coverage.reporter=text",
+    "build:esm": "tsc -p tsconfig.build.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node ./scripts/write-cjs-package-json.mjs",
+    "postinstall": "node ./scripts/postinstall.mjs"
   },
   "dependencies": {
     "@langchain/core": "^0.3.80"
@@ -49,5 +59,20 @@
     "sdk",
     "typescript",
     "nodejs"
-  ]
+  ],
+  "optionalDependencies": {
+    "@agent-assembly/linux-x64-gnu": "0.0.0",
+    "@agent-assembly/darwin-x64": "0.0.0",
+    "@agent-assembly/darwin-arm64": "0.0.0",
+    "@agent-assembly/win32-x64-msvc": "0.0.0"
+  },
+  "files": [
+    "dist/",
+    "native/aa-ffi-node/*.node",
+    "native/aa-ffi-node/index.cjs",
+    "native/aa-ffi-node/index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "types": "./dist/types/index.d.ts"
 }

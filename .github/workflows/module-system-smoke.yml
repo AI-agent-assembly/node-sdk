@@ -1,0 +1,36 @@
+name: module-system-smoke
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  module-smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20, 22]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Run ESM/CJS smoke tests
+        run: pnpm vitest run tests/packaging/esm-resolution.test.ts tests/packaging/cjs-resolution.test.ts

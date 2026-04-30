@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import path from "node:path";
 import type { InitAssemblyOptions } from "../types/policy.js";
 
 export interface PolicyResult {
@@ -12,6 +13,14 @@ interface NativeBinding {
   sendEvent: (handle: object, event: unknown) => void;
   queryPolicy: (handle: object, action: unknown) => Promise<PolicyResult>;
   disconnect: (handle: object) => Promise<void>;
+}
+
+const NATIVE_BINDING_SINGLETON_KEY = Symbol.for(
+  "@agent-assembly/sdk/native-binding"
+);
+
+interface GlobalWithNativeBinding {
+  [NATIVE_BINDING_SINGLETON_KEY]?: NativeBinding;
 }
 
 const ERROR_CONNECT = "AA_ERR_CONNECT";
@@ -67,7 +76,19 @@ function mapNativeError(error: unknown): Error {
 }
 
 function loadNativeBinding(): NativeBinding {
-  const requireFromHere = createRequire(import.meta.url);
+  const shouldUseCache = process.env.VITEST !== "true";
+  const globalObject = globalThis as GlobalWithNativeBinding;
+  const cachedBinding = shouldUseCache
+    ? globalObject[NATIVE_BINDING_SINGLETON_KEY]
+    : undefined;
+
+  if (cachedBinding) {
+    return cachedBinding;
+  }
+
+  const requireFromHere = createRequire(
+    path.resolve(process.cwd(), "package.json")
+  );
   const candidates = [
     "../../native/aa-ffi-node/index.cjs",
     "../../../native/aa-ffi-node/index.cjs",
@@ -77,7 +98,11 @@ function loadNativeBinding(): NativeBinding {
   let lastError: unknown;
   for (const candidate of candidates) {
     try {
-      return requireFromHere(candidate) as NativeBinding;
+      const binding = requireFromHere(candidate) as NativeBinding;
+      if (shouldUseCache) {
+        globalObject[NATIVE_BINDING_SINGLETON_KEY] = binding;
+      }
+      return binding;
     } catch (error) {
       lastError = error;
     }

@@ -31,6 +31,55 @@ async function loadNativeClientWithRequire(
 }
 
 describe("createNativeClient", () => {
+  it("reuses a cached native binding outside vitest runtime mode", async () => {
+    const nativeBindingCacheKey = Symbol.for("@agent-assembly/sdk/native-binding");
+    const globalWithCache = globalThis as Record<symbol, unknown>;
+    const previousVitestFlag = process.env.VITEST;
+
+    delete globalWithCache[nativeBindingCacheKey];
+    process.env.VITEST = "false";
+
+    try {
+      let requireCallCount = 0;
+      const binding = {
+        connect: vi.fn(async () => ({ id: "handle-cache" })),
+        sendEvent: vi.fn(() => undefined),
+        queryPolicy: vi.fn(async () => ({ denied: false, pending: false })),
+        disconnect: vi.fn(async () => undefined)
+      } satisfies MockBinding;
+
+      const mod = await loadNativeClientWithRequire(() => {
+        return () => {
+          requireCallCount += 1;
+          return binding;
+        };
+      });
+
+      const firstClient = mod.createNativeClient({
+        gateway: "/tmp/aa.sock",
+        apiKey: "test-key",
+        mode: "napi-inprocess"
+      });
+      await firstClient.queryPolicy({ action: "check-1" });
+
+      const secondClient = mod.createNativeClient({
+        gateway: "/tmp/aa.sock",
+        apiKey: "test-key",
+        mode: "napi-inprocess"
+      });
+      await secondClient.queryPolicy({ action: "check-2" });
+
+      expect(requireCallCount).toBe(1);
+    } finally {
+      if (previousVitestFlag === undefined) {
+        delete process.env.VITEST;
+      } else {
+        process.env.VITEST = previousVitestFlag;
+      }
+      delete globalWithCache[nativeBindingCacheKey];
+    }
+  });
+
   it("returns grpc-sidecar noop client by default", async () => {
     const mod = await loadNativeClientWithBinding(() => ({
       connect: vi.fn(async () => ({})),

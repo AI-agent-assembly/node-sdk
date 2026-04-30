@@ -4,6 +4,10 @@ export default defineConfig({
   test: {
     environment: "node",
     setupFiles: ["./tests/setup.ts"],
-    include: ["tests/**/*.test.ts"]
+    include: ["tests/**/*.test.ts"],
+    coverage: {
+      include: ["src/**/*.ts", "scripts/**/*.mjs"],
+      exclude: ["**/*.d.mts"]
+    }
   }
 });

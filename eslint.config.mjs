@@ -20,5 +20,14 @@ export default tseslint.config(
         project: ["./tsconfig.build.json", "./tsconfig.test.json"]
       }
     }
+  },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly"
+      }
+    }
   }
 );
