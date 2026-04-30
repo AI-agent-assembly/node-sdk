@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 
 const requireFromHere = createRequire(import.meta.url);
 
@@ -10,9 +11,6 @@ const SUPPORTED_PLATFORM_KEYS = {
   "linux-x64": "linux-x64-gnu",
   "win32-x64": "win32-x64-msvc"
 };
-
-const TARGET_NATIVE_DIR = path.resolve(process.cwd(), "native/aa-ffi-node");
-const TARGET_BINARY_PATH = path.join(TARGET_NATIVE_DIR, "index.node");
 
 export function detectPlatformKey(platform = process.platform, arch = process.arch) {
   return SUPPORTED_PLATFORM_KEYS[`${platform}-${arch}`] ?? null;
@@ -28,7 +26,7 @@ export function resolveBinaryPackageName(platform = process.platform, arch = pro
   return `@agent-assembly/${platformKey}`;
 }
 
-function findFirstNodeBinary(dirPath) {
+export function findFirstNodeBinary(dirPath) {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
   for (const entry of entries) {
@@ -49,9 +47,14 @@ function findFirstNodeBinary(dirPath) {
   return null;
 }
 
-function resolveBinaryFromPackage(packageName) {
+export function resolveBinaryFromPackage(
+  packageName,
+  options = {}
+) {
+  const { cwd = process.cwd() } = options;
+
   const packageJsonPath = requireFromHere.resolve(`${packageName}/package.json`, {
-    paths: [process.cwd()]
+    paths: [cwd]
   });
   const packageDir = path.dirname(packageJsonPath);
   const binaryPath = findFirstNodeBinary(packageDir);
@@ -63,28 +66,57 @@ function resolveBinaryFromPackage(packageName) {
   return binaryPath;
 }
 
-function selectBinaryForCurrentPlatform() {
-  const packageName = resolveBinaryPackageName();
+export function selectBinaryForCurrentPlatform(options = {}) {
+  const {
+    platform = process.platform,
+    arch = process.arch,
+    cwd = process.cwd(),
+    targetNativeDir = path.resolve(cwd, "native/aa-ffi-node"),
+    logger = console
+  } = options;
+
+  const packageName = resolveBinaryPackageName(platform, arch);
 
   if (!packageName) {
-    console.warn(
-      `[agent-assembly] Unsupported platform: ${process.platform}-${process.arch}; skipping binary selection.`
+    logger.warn(
+      `[agent-assembly] Unsupported platform: ${platform}-${arch}; skipping binary selection.`
     );
-    return;
+    return null;
   }
 
-  const sourceBinaryPath = resolveBinaryFromPackage(packageName);
+  const sourceBinaryPath = resolveBinaryFromPackage(packageName, { cwd });
+  const targetBinaryPath = path.join(targetNativeDir, "index.node");
 
-  fs.mkdirSync(TARGET_NATIVE_DIR, { recursive: true });
-  fs.copyFileSync(sourceBinaryPath, TARGET_BINARY_PATH);
+  fs.mkdirSync(targetNativeDir, { recursive: true });
+  fs.copyFileSync(sourceBinaryPath, targetBinaryPath);
 
-  console.info(`[agent-assembly] Selected binary package ${packageName}`);
+  logger.info(`[agent-assembly] Selected binary package ${packageName}`);
+
+  return {
+    packageName,
+    sourceBinaryPath,
+    targetBinaryPath
+  };
 }
 
-try {
-  selectBinaryForCurrentPlatform();
-} catch (error) {
-  console.warn(
-    `[agent-assembly] Failed to select native binary: ${error instanceof Error ? error.message : String(error)}`
-  );
+export function runPostinstall(options = {}) {
+  const { logger = console } = options;
+
+  try {
+    selectBinaryForCurrentPlatform(options);
+    return true;
+  } catch (error) {
+    logger.warn(
+      `[agent-assembly] Failed to select native binary: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return false;
+  }
+}
+
+function isExecutedDirectly() {
+  return Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+}
+
+if (isExecutedDirectly()) {
+  runPostinstall();
 }
