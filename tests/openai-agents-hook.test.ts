@@ -104,6 +104,39 @@ describe("openai agents adapter", () => {
     expect(originalRunTool).not.toHaveBeenCalled();
   });
 
+  it("executes original tool on ALLOW decision", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ denied: false, pending: false }));
+    const originalRunTool = vi.fn(async () => ({ ok: "allow-path" }));
+
+    const hooks = await import("../src/hooks/openai-agents.js");
+    const patchedRunTool = hooks.createPatchedRunTool(originalRunTool, gateway, {
+      fallbackRunId: "fallback-run",
+      approvalTimeoutMs: 5_000
+    });
+
+    const result = await patchedRunTool(
+      {
+        function: {
+          name: "safe_tool",
+          arguments: "{\"count\":1}"
+        }
+      },
+      {
+        runId: "run-allow"
+      }
+    );
+
+    expect(result).toEqual({ ok: "allow-path" });
+    expect(gateway.check).toHaveBeenCalledWith({
+      action: "tool_call",
+      toolName: "safe_tool",
+      args: { count: 1 },
+      runId: "run-allow"
+    });
+    expect(originalRunTool).toHaveBeenCalledTimes(1);
+  });
+
   it("continues execution when PENDING is approved", async () => {
     const gateway = createGatewayClientMock();
     gateway.check = vi.fn(async () => ({ pending: true, denied: false }));
