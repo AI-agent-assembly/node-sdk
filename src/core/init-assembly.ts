@@ -13,6 +13,7 @@ import type {
   LangChainToolLike
 } from "../types/langchain-adapter.js";
 import { hasOpenAIAgentsSDK } from "../hooks/openai-agents-detection.js";
+import { patchOpenAIAgents } from "../hooks/openai-agents.js";
 
 const requireFromCwd = createRequire(`${process.cwd()}/`);
 
@@ -128,6 +129,17 @@ function wrapLangChainTools(
   return Object.keys(tools);
 }
 
+async function patchDetectedOpenAIAgents(
+  client: GatewayClient,
+  frameworks: readonly string[]
+): Promise<boolean> {
+  if (!frameworks.includes("openai-agents")) {
+    return false;
+  }
+
+  return patchOpenAIAgents({ gatewayClient: client });
+}
+
 export async function initAssembly(config: AssemblyConfig): Promise<AssemblyContext> {
   const client = createClient(config);
   const frameworks = detectFrameworks();
@@ -137,13 +149,15 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
 
   const langChainHandler = registerLangChainHandler(config, client, frameworks);
   const wrappedLangChainTools = wrapLangChainTools(config, client, frameworks);
+  const openAIAgentsPatched = await patchDetectedOpenAIAgents(client, frameworks);
 
   return {
     activeAdapters: [
       ...new Set([
         ...adapters.map((adapter) => adapter.id),
         ...(langChainHandler ? ["langchain-js"] : []),
-        ...(wrappedLangChainTools.length > 0 ? ["langchain-js"] : [])
+        ...(wrappedLangChainTools.length > 0 ? ["langchain-js"] : []),
+        ...(openAIAgentsPatched ? ["openai-agents"] : [])
       ])
     ],
     shutdown: async () => {
