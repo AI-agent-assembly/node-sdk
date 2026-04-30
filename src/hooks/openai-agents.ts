@@ -1,4 +1,7 @@
-import type { OpenAIAgentsRunTool } from "../types/openai-agents-adapter.js";
+import type {
+  OpenAIAgentsRunTool,
+  OpenAIAgentsToolCall
+} from "../types/openai-agents-adapter.js";
 
 export interface OpenAIAgentsAgentClass {
   prototype: {
@@ -29,4 +32,12 @@ export function captureOriginalRunTool(
   }
 
   return openAIAgentsPatchState.originalRunTool;
+}
+
+export function parseToolCallArguments(toolCall: OpenAIAgentsToolCall): unknown {
+  try {
+    return JSON.parse(toolCall.function.arguments);
+  } catch {
+    return toolCall.function.arguments;
+  }
 }
