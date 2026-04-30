@@ -6,6 +6,7 @@ export default defineConfig({
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.ts"],
     coverage: {
+      include: ["src/**/*.ts", "scripts/**/*.mjs"],
       exclude: ["**/*.d.mts"]
     }
   }
