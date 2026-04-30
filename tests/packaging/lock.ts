@@ -3,6 +3,7 @@ import path from "node:path";
 
 const PACKAGING_LOCK_PATH = path.resolve(process.cwd(), ".packaging-test.lock");
 const LOCK_RETRY_INTERVAL_MS = 25;
+const RETRYABLE_LOCK_ERROR_CODES = new Set(["EEXIST", "EPERM", "EACCES"]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -19,7 +20,12 @@ export async function withPackagingLock<T>(
     try {
       lockFd = fs.openSync(PACKAGING_LOCK_PATH, "wx");
     } catch (error) {
-      if (!(error instanceof Error) || !("code" in error) || error.code !== "EEXIST") {
+      if (!(error instanceof Error) || !("code" in error)) {
+        throw error;
+      }
+
+      const errorCode = String(error.code);
+      if (!RETRYABLE_LOCK_ERROR_CODES.has(errorCode)) {
         throw error;
       }
 
