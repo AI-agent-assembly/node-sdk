@@ -200,6 +200,25 @@ describe("openai agents adapter", () => {
       runId: "run-4"
     });
   });
+
+  it("extracts agentId and runId from context with optional chaining", async () => {
+    const hooks = await import("../src/hooks/openai-agents.js");
+
+    expect(
+      hooks.extractToolCallContextMetadata({
+        agentId: "agent-42",
+        runId: "run-42"
+      })
+    ).toEqual({
+      agentId: "agent-42",
+      runId: "run-42"
+    });
+
+    expect(hooks.extractToolCallContextMetadata(undefined)).toEqual({
+      agentId: undefined,
+      runId: undefined
+    });
+  });
 });
 async function resetPatchState() {
   const hooks = await import("../src/hooks/openai-agents.js");
