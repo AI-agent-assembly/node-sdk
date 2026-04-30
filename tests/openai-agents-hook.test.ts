@@ -103,6 +103,39 @@ describe("openai agents adapter", () => {
     });
     expect(originalRunTool).not.toHaveBeenCalled();
   });
+
+  it("continues execution when PENDING is approved", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ pending: true, denied: false }));
+    gateway.waitForApproval = vi.fn(async () => ({ denied: false }));
+    const originalRunTool = vi.fn(async () => ({ ok: "approved" }));
+
+    const hooks = await import("../src/hooks/openai-agents.js");
+    const patchedRunTool = hooks.createPatchedRunTool(originalRunTool, gateway, {
+      fallbackRunId: "fallback-run",
+      approvalTimeoutMs: 8_000
+    });
+
+    const result = await patchedRunTool(
+      {
+        function: {
+          name: "transfer_funds",
+          arguments: "{\"amount\":100}"
+        }
+      },
+      {
+        runId: "run-2"
+      }
+    );
+
+    expect(result).toEqual({ ok: "approved" });
+    expect(gateway.waitForApproval).toHaveBeenCalledWith(
+      "transfer_funds",
+      "run-2",
+      8_000
+    );
+    expect(originalRunTool).toHaveBeenCalledTimes(1);
+  });
 });
 async function resetPatchState() {
   const hooks = await import("../src/hooks/openai-agents.js");
