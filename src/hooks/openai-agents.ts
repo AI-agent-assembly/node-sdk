@@ -1,4 +1,5 @@
 import type {
+  OpenAIAgentsRunContext,
   OpenAIAgentsRunTool,
   OpenAIAgentsToolCall
 } from "../types/openai-agents-adapter.js";
@@ -40,4 +41,18 @@ export function parseToolCallArguments(toolCall: OpenAIAgentsToolCall): unknown 
   } catch {
     return toolCall.function.arguments;
   }
+}
+
+export interface OpenAIAgentsToolCallContextMetadata {
+  agentId?: string;
+  runId?: string;
+}
+
+export function extractToolCallContextMetadata(
+  context: OpenAIAgentsRunContext | undefined
+): OpenAIAgentsToolCallContextMetadata {
+  return {
+    agentId: context?.agentId ?? undefined,
+    runId: context?.runId ?? undefined
+  };
 }
