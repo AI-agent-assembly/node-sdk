@@ -4,6 +4,7 @@ import type {
   OpenAIAgentsToolCall,
   OpenAIAgentsToolCallOutput
 } from "../types/openai-agents-adapter.js";
+import type { GatewayClient } from "../gateway/client.js";
 
 export interface OpenAIAgentsAgentClass {
   prototype: {
@@ -64,4 +65,27 @@ export function formatDeniedToolCallOutput(
 ): OpenAIAgentsToolCallOutput {
   const detail = reason?.trim() ? reason : "denied";
   return { error: `${prefix}: ${detail}` };
+}
+
+export interface AwaitApprovalOptions {
+  toolName: string;
+  runId: string;
+  timeoutMs: number;
+}
+
+export async function handlePendingApproval(
+  gatewayClient: GatewayClient,
+  options: AwaitApprovalOptions
+): Promise<OpenAIAgentsToolCallOutput | undefined> {
+  const approval = await gatewayClient.waitForApproval(
+    options.toolName,
+    options.runId,
+    options.timeoutMs
+  );
+
+  if (!approval.denied) {
+    return undefined;
+  }
+
+  return formatDeniedToolCallOutput(approval.reason, "Approval denied");
 }
