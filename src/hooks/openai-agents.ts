@@ -89,3 +89,11 @@ export async function handlePendingApproval(
 
   return formatDeniedToolCallOutput(approval.reason, "Approval denied");
 }
+
+export function recordToolResultNonBlocking(
+  gatewayClient: GatewayClient,
+  runId: string,
+  output: unknown
+): void {
+  void gatewayClient.recordResult({ runId, output }).catch(() => undefined);
+}
