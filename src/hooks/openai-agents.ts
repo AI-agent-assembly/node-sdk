@@ -114,35 +114,52 @@ export function createPatchedRunTool(
     const metadata = extractToolCallContextMetadata(context);
     const runId = metadata.runId ?? options.fallbackRunId;
 
-    const decision = await gatewayClient.check({
-      action: "tool_call",
-      toolName,
-      args,
-      runId
-    });
+    const executeOriginal = async (): Promise<OpenAIAgentsToolCallOutput> => {
+      const result = await originalRunTool.call(this, toolCall, context);
+      recordToolResultNonBlocking(gatewayClient, runId, {
+        toolName,
+        args,
+        result,
+        agentId: metadata.agentId
+      });
+      return result;
+    };
+
+    let decision;
+    try {
+      decision = await gatewayClient.check({
+        action: "tool_call",
+        toolName,
+        args,
+        runId
+      });
+    } catch {
+      return executeOriginal();
+    }
 
     if (decision.denied) {
-      return formatDeniedToolCallOutput(decision.reason, "Blocked by governance policy");
+      return formatDeniedToolCallOutput(
+        decision.reason,
+        "Blocked by governance policy"
+      );
     }
 
     if (decision.pending) {
-      const pendingOutput = await handlePendingApproval(gatewayClient, {
-        toolName,
-        runId,
-        timeoutMs: options.approvalTimeoutMs
-      });
+      let pendingOutput;
+      try {
+        pendingOutput = await handlePendingApproval(gatewayClient, {
+          toolName,
+          runId,
+          timeoutMs: options.approvalTimeoutMs
+        });
+      } catch {
+        return executeOriginal();
+      }
       if (pendingOutput) {
         return pendingOutput;
       }
     }
 
-    const result = await originalRunTool.call(this, toolCall, context);
-    recordToolResultNonBlocking(gatewayClient, runId, {
-      toolName,
-      args,
-      result,
-      agentId: metadata.agentId
-    });
-    return result;
+    return executeOriginal();
   };
 }
