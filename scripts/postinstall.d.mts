@@ -33,3 +33,14 @@ export function runPostinstall(options?: {
   targetNativeDir?: string;
   logger?: { info: (message: string) => void; warn: (message: string) => void };
 }): boolean;
+
+export function isExecutedDirectly(
+  moduleUrl?: string,
+  entryPath?: string
+): boolean;
+
+export function runPostinstallEntrypoint(options?: {
+  moduleUrl?: string;
+  entryPath?: string;
+  run?: () => boolean;
+}): boolean | null;

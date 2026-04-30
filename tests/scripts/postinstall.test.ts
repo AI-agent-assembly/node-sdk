@@ -3,7 +3,9 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   detectPlatformKey,
+  isExecutedDirectly,
   resolveBinaryPackageName,
+  runPostinstallEntrypoint,
   runPostinstall,
   selectBinaryForCurrentPlatform
 } from "../../scripts/postinstall.mjs";
@@ -132,5 +134,33 @@ describe("postinstall script", () => {
     expect(logger.warn.mock.calls[0]?.[0]).toContain(
       "[agent-assembly] Failed to select native binary: No .node file found in @agent-assembly/linux-x64-gnu"
     );
+  });
+
+  it("detects direct execution and runs entrypoint only in main mode", () => {
+    const modulePath = "/tmp/postinstall.mjs";
+    const moduleUrl = `file://${modulePath}`;
+
+    expect(isExecutedDirectly(moduleUrl, modulePath)).toBe(true);
+    expect(isExecutedDirectly(moduleUrl, "/tmp/other.mjs")).toBe(false);
+
+    const runSpy = vi.fn(() => true);
+
+    expect(
+      runPostinstallEntrypoint({
+        moduleUrl,
+        entryPath: modulePath,
+        run: runSpy
+      })
+    ).toBe(true);
+    expect(runSpy).toHaveBeenCalledTimes(1);
+
+    expect(
+      runPostinstallEntrypoint({
+        moduleUrl,
+        entryPath: "/tmp/other.mjs",
+        run: runSpy
+      })
+    ).toBeNull();
+    expect(runSpy).toHaveBeenCalledTimes(1);
   });
 });
