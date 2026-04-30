@@ -16,3 +16,9 @@ export type {
   LangChainRunConfig,
   LangChainToolLike
 } from "./langchain-adapter.js";
+export type {
+  OpenAIAgentsRunContext,
+  OpenAIAgentsRunTool,
+  OpenAIAgentsToolCall,
+  OpenAIAgentsToolCallOutput
+} from "./openai-agents-adapter.js";
