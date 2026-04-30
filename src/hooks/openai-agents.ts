@@ -97,3 +97,52 @@ export function recordToolResultNonBlocking(
 ): void {
   void gatewayClient.recordResult({ runId, output }).catch(() => undefined);
 }
+
+export interface CreatePatchedRunToolOptions {
+  fallbackRunId: string;
+  approvalTimeoutMs: number;
+}
+
+export function createPatchedRunTool(
+  originalRunTool: OpenAIAgentsRunTool,
+  gatewayClient: GatewayClient,
+  options: CreatePatchedRunToolOptions
+): OpenAIAgentsRunTool {
+  return async function patchedRunTool(toolCall, context) {
+    const toolName = toolCall.function.name;
+    const args = parseToolCallArguments(toolCall);
+    const metadata = extractToolCallContextMetadata(context);
+    const runId = metadata.runId ?? options.fallbackRunId;
+
+    const decision = await gatewayClient.check({
+      action: "tool_call",
+      toolName,
+      args,
+      runId
+    });
+
+    if (decision.denied) {
+      return formatDeniedToolCallOutput(decision.reason, "Blocked by governance policy");
+    }
+
+    if (decision.pending) {
+      const pendingOutput = await handlePendingApproval(gatewayClient, {
+        toolName,
+        runId,
+        timeoutMs: options.approvalTimeoutMs
+      });
+      if (pendingOutput) {
+        return pendingOutput;
+      }
+    }
+
+    const result = await originalRunTool.call(this, toolCall, context);
+    recordToolResultNonBlocking(gatewayClient, runId, {
+      toolName,
+      args,
+      result,
+      agentId: metadata.agentId
+    });
+    return result;
+  };
+}
