@@ -169,6 +169,37 @@ describe("openai agents adapter", () => {
     });
     expect(originalRunTool).not.toHaveBeenCalled();
   });
+
+  it("falls back to raw argument string when JSON parsing fails", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ denied: false, pending: false }));
+    const originalRunTool = vi.fn(async () => ({ ok: true }));
+
+    const hooks = await import("../src/hooks/openai-agents.js");
+    const patchedRunTool = hooks.createPatchedRunTool(originalRunTool, gateway, {
+      fallbackRunId: "fallback-run",
+      approvalTimeoutMs: 2_000
+    });
+
+    await patchedRunTool(
+      {
+        function: {
+          name: "malformed_payload_tool",
+          arguments: "{bad-json"
+        }
+      },
+      {
+        runId: "run-4"
+      }
+    );
+
+    expect(gateway.check).toHaveBeenCalledWith({
+      action: "tool_call",
+      toolName: "malformed_payload_tool",
+      args: "{bad-json",
+      runId: "run-4"
+    });
+  });
 });
 async function resetPatchState() {
   const hooks = await import("../src/hooks/openai-agents.js");
