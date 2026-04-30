@@ -11,7 +11,7 @@ interface FakeAgentClass {
       this: FakeAgentInstance,
       toolCall: { function: { name: string; arguments: string } },
       context: { runId?: string; agentId?: string }
-    ) => Promise<unknown>;
+    ) => Promise<Record<string, unknown>>;
   };
 }
 

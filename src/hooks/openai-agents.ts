@@ -49,8 +49,8 @@ export function parseToolCallArguments(toolCall: OpenAIAgentsToolCall): unknown 
 }
 
 export interface OpenAIAgentsToolCallContextMetadata {
-  agentId?: string;
-  runId?: string;
+  agentId: string | undefined;
+  runId: string | undefined;
 }
 
 export function extractToolCallContextMetadata(
@@ -111,7 +111,11 @@ export function createPatchedRunTool(
   gatewayClient: GatewayClient,
   options: CreatePatchedRunToolOptions
 ): OpenAIAgentsRunTool {
-  return async function patchedRunTool(toolCall, context) {
+  return async function patchedRunTool(
+    this: unknown,
+    toolCall: OpenAIAgentsToolCall,
+    context: OpenAIAgentsRunContext
+  ) {
     const toolName = toolCall.function.name;
     const args = parseToolCallArguments(toolCall);
     const metadata = extractToolCallContextMetadata(context);

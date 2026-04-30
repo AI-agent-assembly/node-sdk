@@ -8,10 +8,12 @@ export interface OpenAIAgentsToolCall {
 export interface OpenAIAgentsRunContext {
   agentId?: string;
   runId?: string;
+  [key: string]: unknown;
 }
 
 export interface OpenAIAgentsToolCallOutput {
   error?: string;
+  [key: string]: unknown;
 }
 
 export type OpenAIAgentsRunTool = (
