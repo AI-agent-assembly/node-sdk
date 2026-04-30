@@ -12,6 +12,7 @@ import type {
   LangChainCallbackHandlerLike,
   LangChainToolLike
 } from "../types/langchain-adapter.js";
+import { hasOpenAIAgentsSDK } from "../hooks/openai-agents-detection.js";
 
 const requireFromCwd = createRequire(`${process.cwd()}/`);
 
@@ -42,7 +43,7 @@ export function detectFrameworks(): string[] {
   if (isPackageInstalled("ai")) {
     detected.push("vercel-ai-sdk");
   }
-  if (isPackageInstalled("@openai/agents")) {
+  if (hasOpenAIAgentsSDK()) {
     detected.push("openai-agents");
   }
 
