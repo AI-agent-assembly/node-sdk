@@ -12,10 +12,25 @@ export function writeCjsPackageJson(cwd = process.cwd()) {
   return cjsPackageJsonPath;
 }
 
-function isExecutedDirectly() {
-  return Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+export function isExecutedDirectly(
+  moduleUrl = import.meta.url,
+  entryPath = process.argv[1]
+) {
+  return Boolean(entryPath) && moduleUrl === pathToFileURL(entryPath).href;
 }
 
-if (isExecutedDirectly()) {
-  writeCjsPackageJson();
+export function runWriteCjsEntrypoint(options = {}) {
+  const {
+    moduleUrl = import.meta.url,
+    entryPath = process.argv[1],
+    run = () => writeCjsPackageJson()
+  } = options;
+
+  if (isExecutedDirectly(moduleUrl, entryPath)) {
+    return run();
+  }
+
+  return null;
 }
+
+runWriteCjsEntrypoint();

@@ -113,10 +113,25 @@ export function runPostinstall(options = {}) {
   }
 }
 
-function isExecutedDirectly() {
-  return Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+export function isExecutedDirectly(
+  moduleUrl = import.meta.url,
+  entryPath = process.argv[1]
+) {
+  return Boolean(entryPath) && moduleUrl === pathToFileURL(entryPath).href;
 }
 
-if (isExecutedDirectly()) {
-  runPostinstall();
+export function runPostinstallEntrypoint(options = {}) {
+  const {
+    moduleUrl = import.meta.url,
+    entryPath = process.argv[1],
+    run = () => runPostinstall(options)
+  } = options;
+
+  if (isExecutedDirectly(moduleUrl, entryPath)) {
+    return run();
+  }
+
+  return null;
 }
+
+runPostinstallEntrypoint();
