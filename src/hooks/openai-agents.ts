@@ -16,11 +16,13 @@ export interface OpenAIAgentsAgentClass {
 export interface OpenAIAgentsPatchState {
   isPatched: boolean;
   originalRunTool: OpenAIAgentsRunTool | undefined;
+  patchedAgentClass: OpenAIAgentsAgentClass | undefined;
 }
 
 export const openAIAgentsPatchState: OpenAIAgentsPatchState = {
   isPatched: false,
-  originalRunTool: undefined
+  originalRunTool: undefined,
+  patchedAgentClass: undefined
 };
 
 export function captureOriginalRunTool(
@@ -209,5 +211,24 @@ export async function patchOpenAIAgents(
     }
   );
   openAIAgentsPatchState.isPatched = true;
+  openAIAgentsPatchState.patchedAgentClass = agentClass;
+  return true;
+}
+
+export function unpatchOpenAIAgents(): boolean {
+  if (!openAIAgentsPatchState.isPatched) {
+    return false;
+  }
+  if (!openAIAgentsPatchState.patchedAgentClass) {
+    return false;
+  }
+  if (!openAIAgentsPatchState.originalRunTool) {
+    return false;
+  }
+
+  openAIAgentsPatchState.patchedAgentClass.prototype._runTool =
+    openAIAgentsPatchState.originalRunTool;
+  openAIAgentsPatchState.isPatched = false;
+  openAIAgentsPatchState.patchedAgentClass = undefined;
   return true;
 }
