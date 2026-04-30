@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   detectPlatformKey,
@@ -137,11 +138,12 @@ describe("postinstall script", () => {
   });
 
   it("detects direct execution and runs entrypoint only in main mode", () => {
-    const modulePath = "/tmp/postinstall.mjs";
-    const moduleUrl = `file://${modulePath}`;
+    const modulePath = path.resolve("tmp-postinstall-entrypoint.mjs");
+    const moduleUrl = pathToFileURL(modulePath).href;
+    const otherPath = path.resolve("tmp-postinstall-other.mjs");
 
     expect(isExecutedDirectly(moduleUrl, modulePath)).toBe(true);
-    expect(isExecutedDirectly(moduleUrl, "/tmp/other.mjs")).toBe(false);
+    expect(isExecutedDirectly(moduleUrl, otherPath)).toBe(false);
 
     const runSpy = vi.fn(() => true);
 
@@ -157,7 +159,7 @@ describe("postinstall script", () => {
     expect(
       runPostinstallEntrypoint({
         moduleUrl,
-        entryPath: "/tmp/other.mjs",
+        entryPath: otherPath,
         run: runSpy
       })
     ).toBeNull();

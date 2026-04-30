@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isExecutedDirectly,
@@ -34,11 +35,12 @@ describe("write-cjs-package-json script", () => {
   });
 
   it("runs cjs writer only for direct execution entrypoint", () => {
-    const modulePath = "/tmp/write-cjs-package-json.mjs";
-    const moduleUrl = `file://${modulePath}`;
+    const modulePath = path.resolve("tmp-write-cjs-entrypoint.mjs");
+    const moduleUrl = pathToFileURL(modulePath).href;
+    const otherPath = path.resolve("tmp-write-cjs-other.mjs");
 
     expect(isExecutedDirectly(moduleUrl, modulePath)).toBe(true);
-    expect(isExecutedDirectly(moduleUrl, "/tmp/other.mjs")).toBe(false);
+    expect(isExecutedDirectly(moduleUrl, otherPath)).toBe(false);
 
     const runSpy = vi.fn(() => "/tmp/dist/cjs/package.json");
 
@@ -54,7 +56,7 @@ describe("write-cjs-package-json script", () => {
     expect(
       runWriteCjsEntrypoint({
         moduleUrl,
-        entryPath: "/tmp/other.mjs",
+        entryPath: otherPath,
         run: runSpy
       })
     ).toBeNull();
