@@ -73,6 +73,36 @@ describe("openai agents adapter", () => {
       hooks.openAIAgentsPatchState.originalRunTool
     );
   });
+
+  it("returns error output on DENY without throwing or executing original tool", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ denied: true, reason: "policy-blocked" }));
+    const originalRunTool = vi.fn(async () => ({ ok: true }));
+
+    const hooks = await import("../src/hooks/openai-agents.js");
+    const patchedRunTool = hooks.createPatchedRunTool(originalRunTool, gateway, {
+      fallbackRunId: "fallback-run",
+      approvalTimeoutMs: 5_000
+    });
+
+    const result = await patchedRunTool(
+      {
+        function: {
+          name: "send_email",
+          arguments: "{\"to\":\"user@example.com\"}"
+        }
+      },
+      {
+        runId: "run-1",
+        agentId: "agent-1"
+      }
+    );
+
+    expect(result).toEqual({
+      error: "Blocked by governance policy: policy-blocked"
+    });
+    expect(originalRunTool).not.toHaveBeenCalled();
+  });
 });
 async function resetPatchState() {
   const hooks = await import("../src/hooks/openai-agents.js");
