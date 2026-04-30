@@ -266,6 +266,29 @@ describe("openai agents adapter", () => {
     expect(result).toEqual({ ok: "fallback-path" });
     expect(originalRunTool).toHaveBeenCalledTimes(1);
   });
+
+  it("restores original _runTool when unpatch is called", async () => {
+    const gateway = createGatewayClientMock();
+    const originalRunTool = vi.fn(async () => ({ ok: true }));
+    const fakeAgentClass: FakeAgentClass = {
+      prototype: {
+        _runTool: originalRunTool
+      }
+    };
+
+    const hooks = await import("../src/hooks/openai-agents.js");
+    const patched = await hooks.patchOpenAIAgents({
+      gatewayClient: gateway,
+      loadAgentClass: async () => fakeAgentClass
+    });
+
+    expect(patched).toBe(true);
+    expect(fakeAgentClass.prototype._runTool).not.toBe(originalRunTool);
+
+    const restored = hooks.unpatchOpenAIAgents();
+    expect(restored).toBe(true);
+    expect(fakeAgentClass.prototype._runTool).toBe(originalRunTool);
+  });
 });
 async function resetPatchState() {
   const hooks = await import("../src/hooks/openai-agents.js");
