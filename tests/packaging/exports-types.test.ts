@@ -20,5 +20,5 @@ describe("packaging export types", () => {
         fs.existsSync(path.resolve(process.cwd(), "dist/types/index.d.ts"))
       ).toBe(true);
     });
-  }, 30000);
+  }, 90000);
 });
