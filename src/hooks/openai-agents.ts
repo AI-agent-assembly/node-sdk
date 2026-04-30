@@ -5,6 +5,7 @@ import type {
   OpenAIAgentsToolCallOutput
 } from "../types/openai-agents-adapter.js";
 import type { GatewayClient } from "../gateway/client.js";
+import { hasOpenAIAgentsSDK } from "./openai-agents-detection.js";
 
 export interface OpenAIAgentsAgentClass {
   prototype: {
@@ -162,4 +163,51 @@ export function createPatchedRunTool(
 
     return executeOriginal();
   };
+}
+
+export interface PatchOpenAIAgentsOptions {
+  gatewayClient: GatewayClient;
+  approvalTimeoutMs?: number;
+  fallbackRunId?: string;
+  loadAgentClass?: () => Promise<OpenAIAgentsAgentClass | undefined>;
+}
+
+async function loadAgentClassFromSdk(): Promise<OpenAIAgentsAgentClass | undefined> {
+  if (!hasOpenAIAgentsSDK()) {
+    return undefined;
+  }
+
+  const moduleName = "@openai/agents";
+  const module = (await import(moduleName)) as { Agent?: OpenAIAgentsAgentClass };
+  return module.Agent;
+}
+
+export async function patchOpenAIAgents(
+  options: PatchOpenAIAgentsOptions
+): Promise<boolean> {
+  if (openAIAgentsPatchState.isPatched) {
+    return true;
+  }
+
+  const loadAgentClass = options.loadAgentClass ?? loadAgentClassFromSdk;
+  const agentClass = await loadAgentClass();
+  if (!agentClass) {
+    return false;
+  }
+
+  const originalRunTool = captureOriginalRunTool(agentClass);
+  if (!originalRunTool) {
+    return false;
+  }
+
+  agentClass.prototype._runTool = createPatchedRunTool(
+    originalRunTool,
+    options.gatewayClient,
+    {
+      approvalTimeoutMs: options.approvalTimeoutMs ?? 30_000,
+      fallbackRunId: options.fallbackRunId ?? "openai-agents"
+    }
+  );
+  openAIAgentsPatchState.isPatched = true;
+  return true;
 }
