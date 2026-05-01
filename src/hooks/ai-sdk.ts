@@ -140,3 +140,51 @@ export function createPatchedToolFactory(
     };
   };
 }
+
+export interface PatchVercelAiSdkOptions {
+  gatewayClient: GatewayClient;
+  approvalTimeoutMs?: number;
+  fallbackRunId?: string;
+  loadModule?: () => Promise<VercelAiSdkModule | undefined>;
+}
+
+async function loadVercelAiSdkModule(): Promise<VercelAiSdkModule | undefined> {
+  try {
+    const moduleName = "ai";
+    const module = (await import(moduleName)) as VercelAiSdkModule;
+    return module;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function patchVercelAiSdk(
+  options: PatchVercelAiSdkOptions
+): Promise<boolean> {
+  if (vercelAiSdkPatchState.isPatched) {
+    return true;
+  }
+
+  const loadModule = options.loadModule ?? loadVercelAiSdkModule;
+  const module = await loadModule();
+  if (!module) {
+    return false;
+  }
+
+  const originalToolFactory = captureOriginalToolFactory(module);
+  if (!originalToolFactory) {
+    return false;
+  }
+
+  module.tool = createPatchedToolFactory(
+    originalToolFactory,
+    options.gatewayClient,
+    {
+      approvalTimeoutMs: options.approvalTimeoutMs ?? 30_000,
+      fallbackRunId: options.fallbackRunId ?? "vercel-ai-sdk"
+    }
+  );
+  vercelAiSdkPatchState.isPatched = true;
+  vercelAiSdkPatchState.patchedModule = module;
+  return true;
+}
