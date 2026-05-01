@@ -12,6 +12,8 @@ import type {
   LangChainCallbackHandlerLike,
   LangChainToolLike
 } from "../types/langchain-adapter.js";
+import { hasVercelAiSdk } from "../hooks/ai-sdk-detection.js";
+import { patchVercelAiSdk } from "../hooks/ai-sdk.js";
 import { hasOpenAIAgentsSDK } from "../hooks/openai-agents-detection.js";
 import { patchOpenAIAgents } from "../hooks/openai-agents.js";
 
@@ -41,7 +43,7 @@ export function detectFrameworks(): string[] {
   if (isPackageInstalled("@langchain/core")) {
     detected.push("langchain-js");
   }
-  if (isPackageInstalled("ai")) {
+  if (hasVercelAiSdk()) {
     detected.push("vercel-ai-sdk");
   }
   if (hasOpenAIAgentsSDK()) {
@@ -129,6 +131,17 @@ function wrapLangChainTools(
   return Object.keys(tools);
 }
 
+async function patchDetectedVercelAiSdk(
+  client: GatewayClient,
+  frameworks: readonly string[]
+): Promise<boolean> {
+  if (!frameworks.includes("vercel-ai-sdk")) {
+    return false;
+  }
+
+  return patchVercelAiSdk({ gatewayClient: client });
+}
+
 async function patchDetectedOpenAIAgents(
   client: GatewayClient,
   frameworks: readonly string[]
@@ -149,6 +162,7 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
 
   const langChainHandler = registerLangChainHandler(config, client, frameworks);
   const wrappedLangChainTools = wrapLangChainTools(config, client, frameworks);
+  const vercelAiSdkPatched = await patchDetectedVercelAiSdk(client, frameworks);
   const openAIAgentsPatched = await patchDetectedOpenAIAgents(client, frameworks);
 
   return {
@@ -157,6 +171,7 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
         ...adapters.map((adapter) => adapter.id),
         ...(langChainHandler ? ["langchain-js"] : []),
         ...(wrappedLangChainTools.length > 0 ? ["langchain-js"] : []),
+        ...(vercelAiSdkPatched ? ["vercel-ai-sdk"] : []),
         ...(openAIAgentsPatched ? ["openai-agents"] : [])
       ])
     ],
