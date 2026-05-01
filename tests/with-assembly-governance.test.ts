@@ -49,4 +49,23 @@ describe("withAssembly governance", () => {
     await expect(tools.dangerous.execute()).rejects.toThrow("Tool 'dangerous' blocked: policy X");
     expect(executeFn).not.toHaveBeenCalled();
   });
+
+  it("PENDING→approve: waits for approval then executes", async () => {
+    const gateway = createMockGateway({
+      check: vi.fn(async () => ({ denied: false, pending: true })),
+      waitForApproval: vi.fn(async () => ({ denied: false }))
+    });
+    const executeFn = vi.fn(async () => "approved-result");
+    const tools = {
+      sensitive: { description: "Sensitive tool", execute: executeFn }
+    };
+
+    withAssembly(tools, { gatewayClient: gateway });
+
+    const result = await tools.sensitive.execute();
+
+    expect(gateway.waitForApproval).toHaveBeenCalledOnce();
+    expect(executeFn).toHaveBeenCalledOnce();
+    expect(result).toBe("approved-result");
+  });
 });
