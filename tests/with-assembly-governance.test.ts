@@ -113,7 +113,7 @@ describe("withAssembly governance", () => {
     const gateway = createMockGateway({
       check: vi.fn(async () => ({ denied: true, pending: false, reason: "blocked" }))
     });
-    const invokeFn = vi.fn(async () => "should not run");
+    const invokeFn: (input: string) => Promise<string> = vi.fn(async () => "should not run");
     const tools = {
       lcTool: { name: "lcTool", invoke: invokeFn }
     };
