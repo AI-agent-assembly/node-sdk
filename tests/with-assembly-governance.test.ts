@@ -126,4 +126,19 @@ describe("withAssembly governance", () => {
     );
     expect(invokeFn).not.toHaveBeenCalled();
   });
+
+  it("passthrough: tools without execute or invoke are left unchanged", () => {
+    const gateway = createMockGateway();
+    const tools = {
+      config: { description: "Config-only tool", setting: "value" }
+    };
+
+    const originalTool = { ...tools.config };
+
+    withAssembly(tools, { gatewayClient: gateway });
+
+    expect(tools.config.description).toBe(originalTool.description);
+    expect(tools.config.setting).toBe(originalTool.setting);
+    expect(gateway.check).not.toHaveBeenCalled();
+  });
 });
