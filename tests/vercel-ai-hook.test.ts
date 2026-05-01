@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GatewayClient } from "../src/gateway/client.js";
+import type { VercelAiToolDefinition, VercelAiToolFactory } from "../src/types/vercel-ai-adapter.js";
+import type { VercelAiSdkModule } from "../src/hooks/ai-sdk.js";
 
 function createGatewayClientMock(): GatewayClient {
   return {
@@ -223,8 +225,8 @@ describe("vercel ai sdk adapter", () => {
 
   it("restores original tool factory when unpatch is called", async () => {
     const gateway = createGatewayClientMock();
-    const originalTool = vi.fn((def: Record<string, unknown>) => def);
-    const fakeModule = { tool: originalTool };
+    const originalTool = vi.fn((def: VercelAiToolDefinition) => def) as unknown as VercelAiToolFactory;
+    const fakeModule: VercelAiSdkModule = { tool: originalTool };
 
     const hooks = await import("../src/hooks/ai-sdk.js");
     const patched = await hooks.patchVercelAiSdk({
@@ -242,9 +244,9 @@ describe("vercel ai sdk adapter", () => {
 
   it("passes through tools without execute unchanged", async () => {
     const gateway = createGatewayClientMock();
-    const toolWithoutExecute = { description: "a schema-only tool", parameters: {} };
-    const originalTool = vi.fn((def: Record<string, unknown>) => ({ ...def }));
-    const fakeModule = { tool: originalTool };
+    const toolWithoutExecute: VercelAiToolDefinition = { description: "a schema-only tool", parameters: {} };
+    const originalTool = vi.fn((def: VercelAiToolDefinition) => ({ ...def })) as unknown as VercelAiToolFactory;
+    const fakeModule: VercelAiSdkModule = { tool: originalTool };
 
     const hooks = await import("../src/hooks/ai-sdk.js");
     await hooks.patchVercelAiSdk({
@@ -259,7 +261,7 @@ describe("vercel ai sdk adapter", () => {
 
   it("activates patching during initAssembly when ai package is detected", async () => {
     const gateway = createGatewayClientMock();
-    const originalTool = vi.fn((def: Record<string, unknown>) => def);
+    const originalTool = vi.fn((def: VercelAiToolDefinition) => def) as unknown as VercelAiToolFactory;
 
     vi.doMock("ai", () => ({ tool: originalTool }));
     vi.doMock("node:module", () => ({
