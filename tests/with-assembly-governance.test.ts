@@ -87,4 +87,25 @@ describe("withAssembly governance", () => {
     );
     expect(executeFn).not.toHaveBeenCalled();
   });
+
+  it("PENDING→timeout: throws PolicyViolationError on approval timeout", async () => {
+    const gateway = createMockGateway({
+      check: vi.fn(async () => ({ denied: false, pending: true })),
+      waitForApproval: vi.fn(
+        () => new Promise<{ denied: boolean }>((resolve) => {
+          setTimeout(() => resolve({ denied: false }), 5000);
+        })
+      )
+    });
+    const executeFn = vi.fn(async () => "should not run");
+    const tools = {
+      slow: { description: "Slow approval tool", execute: executeFn }
+    };
+
+    withAssembly(tools, { gatewayClient: gateway, approvalTimeoutMs: 50 });
+
+    await expect(tools.slow.execute()).rejects.toThrow(PolicyViolationError);
+    await expect(tools.slow.execute()).rejects.toThrow("Approval timeout after 50ms");
+    expect(executeFn).not.toHaveBeenCalled();
+  });
 });
