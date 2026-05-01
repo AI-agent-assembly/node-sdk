@@ -68,4 +68,23 @@ describe("withAssembly governance", () => {
     expect(executeFn).toHaveBeenCalledOnce();
     expect(result).toBe("approved-result");
   });
+
+  it("PENDING→deny: throws PolicyViolationError when approval is rejected", async () => {
+    const gateway = createMockGateway({
+      check: vi.fn(async () => ({ denied: false, pending: true })),
+      waitForApproval: vi.fn(async () => ({ denied: true, reason: "Manager rejected" }))
+    });
+    const executeFn = vi.fn(async () => "should not run");
+    const tools = {
+      sensitive: { description: "Sensitive tool", execute: executeFn }
+    };
+
+    withAssembly(tools, { gatewayClient: gateway });
+
+    await expect(tools.sensitive.execute()).rejects.toThrow(PolicyViolationError);
+    await expect(tools.sensitive.execute()).rejects.toThrow(
+      "Approval rejected for 'sensitive': Manager rejected"
+    );
+    expect(executeFn).not.toHaveBeenCalled();
+  });
 });
