@@ -107,3 +107,36 @@ export function createWrappedExecute<TArgs, TResult>(
     return executeOriginal();
   };
 }
+
+export interface CreatePatchedToolFactoryOptions {
+  approvalTimeoutMs: number;
+  fallbackRunId: string;
+}
+
+export function createPatchedToolFactory(
+  originalToolFactory: VercelAiToolFactory,
+  gatewayClient: GatewayClient,
+  options: CreatePatchedToolFactoryOptions
+): VercelAiToolFactory {
+  return function patchedTool<TArgs, TResult>(
+    definition: VercelAiToolDefinition<TArgs, TResult>
+  ): VercelAiToolDefinition<TArgs, TResult> {
+    const toolResult = originalToolFactory(definition);
+
+    if (!toolResult.execute) {
+      return toolResult;
+    }
+
+    const description = toolResult.description ?? "unknown_tool";
+
+    return {
+      ...toolResult,
+      execute: createWrappedExecute(
+        toolResult.execute,
+        description,
+        gatewayClient,
+        options
+      )
+    };
+  };
+}
