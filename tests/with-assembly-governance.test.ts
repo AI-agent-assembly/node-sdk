@@ -33,4 +33,20 @@ describe("withAssembly governance", () => {
     expect(executeFn).toHaveBeenCalledWith({ query: "hello" });
     expect(result).toBe("result:hello");
   });
+
+  it("DENY: throws PolicyViolationError when gateway denies", async () => {
+    const gateway = createMockGateway({
+      check: vi.fn(async () => ({ denied: true, pending: false, reason: "policy X" }))
+    });
+    const executeFn = vi.fn(async () => "should not run");
+    const tools = {
+      dangerous: { description: "Dangerous tool", execute: executeFn }
+    };
+
+    withAssembly(tools, { gatewayClient: gateway });
+
+    await expect(tools.dangerous.execute()).rejects.toThrow(PolicyViolationError);
+    await expect(tools.dangerous.execute()).rejects.toThrow("Tool 'dangerous' blocked: policy X");
+    expect(executeFn).not.toHaveBeenCalled();
+  });
 });
