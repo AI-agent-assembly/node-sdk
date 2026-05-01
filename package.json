@@ -41,6 +41,11 @@
   "peerDependencies": {
     "@langchain/core": ">=0.3.0"
   },
+  "peerDependenciesMeta": {
+    "@langchain/core": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^9.24.0",
     "@napi-rs/cli": "3.1.5",
