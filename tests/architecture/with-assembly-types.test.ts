@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createNoopGatewayClient } from "../../src/gateway/client.js";
 import { withAssembly } from "../../src/wrappers/with-assembly.js";
 
 type Equal<A, B> =
@@ -18,7 +19,10 @@ describe("withAssembly", () => {
       }
     };
 
-    const wrapped = withAssembly(tools, { agentId: "agent-1" });
+    const wrapped = withAssembly(tools, {
+      gatewayClient: createNoopGatewayClient("sdk-only"),
+      agentId: "agent-1"
+    });
 
     type _ExactTypePreserved = Expect<Equal<typeof wrapped, typeof tools>>;
     const _typeAssertion: _ExactTypePreserved = true;
