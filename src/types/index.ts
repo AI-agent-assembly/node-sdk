@@ -22,3 +22,8 @@ export type {
   OpenAIAgentsToolCall,
   OpenAIAgentsToolCallOutput
 } from "./openai-agents-adapter.js";
+export type {
+  VercelAiToolDefinition,
+  VercelAiToolExecutionOptions,
+  VercelAiToolFactory
+} from "./vercel-ai-adapter.js";

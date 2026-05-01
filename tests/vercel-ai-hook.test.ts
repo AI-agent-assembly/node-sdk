@@ -1,0 +1,299 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { GatewayClient } from "../src/gateway/client.js";
+import type { VercelAiToolDefinition, VercelAiToolFactory } from "../src/types/vercel-ai-adapter.js";
+import type { VercelAiSdkModule } from "../src/hooks/ai-sdk.js";
+
+function createGatewayClientMock(): GatewayClient {
+  return {
+    mode: "sdk-only",
+    start: vi.fn(async () => undefined),
+    close: vi.fn(async () => undefined),
+    check: vi.fn(async () => ({ denied: false, pending: false })),
+    waitForApproval: vi.fn(async () => ({ denied: false })),
+    record: vi.fn(async () => undefined),
+    recordResult: vi.fn(async () => undefined),
+    scanPrompts: vi.fn(async () => undefined)
+  };
+}
+
+afterEach(() => {
+  return resetPatchState().finally(() => {
+    vi.resetModules();
+  });
+});
+
+describe("vercel ai sdk adapter", () => {
+  it("executes original tool on ALLOW decision", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ denied: false, pending: false }));
+    const originalExecute = vi.fn(async () => ({ ok: "allow-path" }));
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    const wrappedExecute = hooks.createWrappedExecute(
+      originalExecute,
+      "a weather tool",
+      gateway,
+      { approvalTimeoutMs: 5_000, fallbackRunId: "fallback" }
+    );
+
+    const result = await wrappedExecute(
+      { city: "Tokyo" },
+      { toolCallId: "call-1" }
+    );
+
+    expect(result).toEqual({ ok: "allow-path" });
+    expect(gateway.check).toHaveBeenCalledWith({
+      action: "tool_call",
+      toolName: "a weather tool",
+      args: { city: "Tokyo" },
+      runId: "call-1"
+    });
+    expect(originalExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws PolicyViolationError on DENY without executing original tool", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ denied: true, reason: "policy-blocked" }));
+    const originalExecute = vi.fn(async () => ({ ok: true }));
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    const wrappedExecute = hooks.createWrappedExecute(
+      originalExecute,
+      "send email tool",
+      gateway,
+      { approvalTimeoutMs: 5_000, fallbackRunId: "fallback" }
+    );
+
+    const error = await wrappedExecute(
+      { to: "user@example.com" },
+      { toolCallId: "call-2" }
+    ).catch((e: Error) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).name).toBe("PolicyViolationError");
+    expect((error as Error).message).toBe(
+      "Tool blocked by governance policy: policy-blocked"
+    );
+
+    expect(originalExecute).not.toHaveBeenCalled();
+  });
+
+  it("continues execution when PENDING is approved", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ pending: true, denied: false }));
+    gateway.waitForApproval = vi.fn(async () => ({ denied: false }));
+    const originalExecute = vi.fn(async () => ({ ok: "approved" }));
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    const wrappedExecute = hooks.createWrappedExecute(
+      originalExecute,
+      "transfer funds",
+      gateway,
+      { approvalTimeoutMs: 8_000, fallbackRunId: "fallback" }
+    );
+
+    const result = await wrappedExecute(
+      { amount: 100 },
+      { toolCallId: "call-3" }
+    );
+
+    expect(result).toEqual({ ok: "approved" });
+    expect(gateway.waitForApproval).toHaveBeenCalledWith(
+      "transfer funds",
+      "call-3",
+      8_000
+    );
+    expect(originalExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws PolicyViolationError when PENDING is denied", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ pending: true, denied: false }));
+    gateway.waitForApproval = vi.fn(async () => ({
+      denied: true,
+      reason: "manual reviewer rejected"
+    }));
+    const originalExecute = vi.fn(async () => ({ ok: true }));
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    const wrappedExecute = hooks.createWrappedExecute(
+      originalExecute,
+      "delete account",
+      gateway,
+      { approvalTimeoutMs: 1_000, fallbackRunId: "fallback" }
+    );
+
+    const error = await wrappedExecute(
+      { id: "u1" },
+      { toolCallId: "call-4" }
+    ).catch((e: Error) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).name).toBe("PolicyViolationError");
+    expect((error as Error).message).toBe(
+      "Approval rejected: manual reviewer rejected"
+    );
+
+    expect(originalExecute).not.toHaveBeenCalled();
+  });
+
+  it("uses description for toolName in gateway check", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ denied: false, pending: false }));
+    const originalExecute = vi.fn(async () => ({ ok: true }));
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    const wrappedExecute = hooks.createWrappedExecute(
+      originalExecute,
+      "Get current weather for a city",
+      gateway,
+      { approvalTimeoutMs: 5_000, fallbackRunId: "fallback" }
+    );
+
+    await wrappedExecute({ city: "Paris" }, { toolCallId: "call-5" });
+
+    expect(gateway.check).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolName: "Get current weather for a city"
+      })
+    );
+  });
+
+  it("fails open and executes original tool when gateway check throws", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => {
+      throw new Error("gateway unavailable");
+    });
+    const originalExecute = vi.fn(async () => ({ ok: "fallback-path" }));
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    const wrappedExecute = hooks.createWrappedExecute(
+      originalExecute,
+      "critical tool",
+      gateway,
+      { approvalTimeoutMs: 4_000, fallbackRunId: "fallback" }
+    );
+
+    const result = await wrappedExecute(
+      { x: 1 },
+      { toolCallId: "call-6" }
+    );
+
+    expect(result).toEqual({ ok: "fallback-path" });
+    expect(originalExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it("records results in fire-and-forget mode without surfacing recorder failures", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.recordResult = vi.fn(async () => {
+      throw new Error("recording failed");
+    });
+    const hooks = await import("../src/hooks/ai-sdk.js");
+
+    expect(() =>
+      hooks.recordToolResultNonBlocking(gateway, "run-7", { ok: true })
+    ).not.toThrow();
+
+    await Promise.resolve();
+    expect(gateway.recordResult).toHaveBeenCalledWith({
+      runId: "run-7",
+      output: { ok: true }
+    });
+  });
+
+  it("uses fallbackRunId when toolCallId is not provided", async () => {
+    const gateway = createGatewayClientMock();
+    gateway.check = vi.fn(async () => ({ denied: false, pending: false }));
+    const originalExecute = vi.fn(async () => ({ ok: true }));
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    const wrappedExecute = hooks.createWrappedExecute(
+      originalExecute,
+      "some tool",
+      gateway,
+      { approvalTimeoutMs: 5_000, fallbackRunId: "vercel-ai-sdk" }
+    );
+
+    await wrappedExecute({ data: "test" }, {});
+
+    expect(gateway.check).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "vercel-ai-sdk"
+      })
+    );
+  });
+
+  it("restores original tool factory when unpatch is called", async () => {
+    const gateway = createGatewayClientMock();
+    const originalTool = vi.fn((def: VercelAiToolDefinition) => def) as unknown as VercelAiToolFactory;
+    const fakeModule: VercelAiSdkModule = { tool: originalTool };
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    const patched = await hooks.patchVercelAiSdk({
+      gatewayClient: gateway,
+      loadModule: async () => fakeModule
+    });
+
+    expect(patched).toBe(true);
+    expect(fakeModule.tool).not.toBe(originalTool);
+
+    const restored = hooks.unpatchVercelAiSdk();
+    expect(restored).toBe(true);
+    expect(fakeModule.tool).toBe(originalTool);
+  });
+
+  it("passes through tools without execute unchanged", async () => {
+    const gateway = createGatewayClientMock();
+    const toolWithoutExecute: VercelAiToolDefinition = { description: "a schema-only tool", parameters: {} };
+    const originalTool = vi.fn((def: VercelAiToolDefinition) => ({ ...def })) as unknown as VercelAiToolFactory;
+    const fakeModule: VercelAiSdkModule = { tool: originalTool };
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    await hooks.patchVercelAiSdk({
+      gatewayClient: gateway,
+      loadModule: async () => fakeModule
+    });
+
+    const result = fakeModule.tool(toolWithoutExecute);
+    expect(result.execute).toBeUndefined();
+    expect(result.description).toBe("a schema-only tool");
+  });
+
+  it("activates patching during initAssembly when ai package is detected", async () => {
+    const gateway = createGatewayClientMock();
+    const originalTool = vi.fn((def: VercelAiToolDefinition) => def) as unknown as VercelAiToolFactory;
+
+    vi.doMock("ai", () => ({ tool: originalTool }));
+    vi.doMock("node:module", () => ({
+      createRequire: () => ({
+        resolve: (packageName: string) => {
+          if (packageName === "ai") {
+            return packageName;
+          }
+          throw new Error("MODULE_NOT_FOUND");
+        }
+      })
+    }));
+
+    const { initAssembly } = await import("../src/core/init-assembly.js");
+    const context = await initAssembly({
+      gatewayUrl: "https://gateway.example.com",
+      apiKey: "test-key",
+      mode: "sdk-only",
+      gatewayClient: gateway
+    });
+
+    expect(context.activeAdapters).toContain("vercel-ai-sdk");
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    expect(hooks.vercelAiSdkPatchState.isPatched).toBe(true);
+  });
+});
+
+async function resetPatchState(): Promise<void> {
+  const hooks = await import("../src/hooks/ai-sdk.js");
+  hooks.unpatchVercelAiSdk();
+  hooks.vercelAiSdkPatchState.originalToolFactory = undefined;
+  hooks.vercelAiSdkPatchState.patchedModule = undefined;
+  hooks.vercelAiSdkPatchState.isPatched = false;
+}
