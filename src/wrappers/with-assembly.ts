@@ -1,8 +1,10 @@
+import type { GatewayClient } from "../gateway/client.js";
 import type { ToolMap } from "../types/tool-map.js";
 
 export interface WithAssemblyOptions {
+  gatewayClient: GatewayClient;
   agentId?: string;
-  gatewayUrl?: string;
+  approvalTimeoutMs?: number;
 }
 
 export function withAssembly<TTool, TTools extends ToolMap<TTool>>(
