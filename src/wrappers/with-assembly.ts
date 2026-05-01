@@ -7,6 +7,32 @@ export interface WithAssemblyOptions {
   approvalTimeoutMs?: number;
 }
 
+const DEFAULT_APPROVAL_TIMEOUT_MS = 30_000;
+
+async function waitForApprovalWithTimeout(
+  gateway: GatewayClient,
+  toolName: string,
+  runId: string,
+  timeoutMs: number
+): Promise<{ denied?: boolean; reason?: string }> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<{ denied: true; reason: string }>((resolve) => {
+    timeoutId = setTimeout(() => {
+      resolve({ denied: true, reason: `Approval timeout after ${timeoutMs}ms` });
+    }, timeoutMs);
+  });
+
+  try {
+    const approvalPromise = gateway.waitForApproval(toolName, runId, timeoutMs);
+    return await Promise.race([approvalPromise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 function hasExecute(
   tool: Record<string, unknown>
 ): tool is Record<string, unknown> & { execute: (...args: unknown[]) => unknown } {
