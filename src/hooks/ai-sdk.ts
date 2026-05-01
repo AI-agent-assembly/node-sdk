@@ -1,8 +1,32 @@
-import type { NativeClient } from "../native/client.js";
+import type { VercelAiToolFactory } from "../types/vercel-ai-adapter.js";
 
-export async function patchVercelAiSdk(client: NativeClient): Promise<boolean> {
-  if (client.mode === "grpc-sidecar" || client.mode === "napi-inprocess") {
-    return false;
+export interface VercelAiSdkModule {
+  tool: VercelAiToolFactory;
+}
+
+export interface VercelAiSdkPatchState {
+  isPatched: boolean;
+  originalToolFactory: VercelAiToolFactory | undefined;
+  patchedModule: VercelAiSdkModule | undefined;
+}
+
+export const vercelAiSdkPatchState: VercelAiSdkPatchState = {
+  isPatched: false,
+  originalToolFactory: undefined,
+  patchedModule: undefined
+};
+
+export function captureOriginalToolFactory(
+  module: VercelAiSdkModule
+): VercelAiToolFactory | undefined {
+  const candidate = module.tool;
+  if (typeof candidate !== "function") {
+    return undefined;
   }
-  return false;
+
+  if (!vercelAiSdkPatchState.originalToolFactory) {
+    vercelAiSdkPatchState.originalToolFactory = candidate;
+  }
+
+  return vercelAiSdkPatchState.originalToolFactory;
 }
