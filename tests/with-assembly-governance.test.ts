@@ -141,4 +141,25 @@ describe("withAssembly governance", () => {
     expect(tools.config.setting).toBe(originalTool.setting);
     expect(gateway.check).not.toHaveBeenCalled();
   });
+
+  it("mixed tool map: handles execute, invoke, and plain tools together", async () => {
+    const gateway = createMockGateway();
+    const executeFn = vi.fn(async () => "execute-result");
+    const invokeFn = vi.fn(async () => "invoke-result");
+    const tools = {
+      vercelTool: { description: "Vercel tool", execute: executeFn },
+      langchainTool: { name: "langchainTool", invoke: invokeFn },
+      plainTool: { description: "No callable method", data: 42 }
+    };
+
+    withAssembly(tools, { gatewayClient: gateway });
+
+    const executeResult = await tools.vercelTool.execute();
+    const invokeResult = await tools.langchainTool.invoke();
+
+    expect(executeResult).toBe("execute-result");
+    expect(invokeResult).toBe("invoke-result");
+    expect(tools.plainTool.data).toBe(42);
+    expect(gateway.check).toHaveBeenCalledTimes(2);
+  });
 });
