@@ -122,6 +122,8 @@ export function withAssembly<TTool, TTools extends ToolMap<TTool>>(
   tools: TTools,
   options: WithAssemblyOptions
 ): TTools {
-  void options;
+  for (const [name, tool] of Object.entries(tools)) {
+    wrapSingleTool(name, tool as Record<string, unknown>, options.gatewayClient, options);
+  }
   return tools;
 }
