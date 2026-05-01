@@ -108,4 +108,22 @@ describe("withAssembly governance", () => {
     await expect(tools.slow.execute()).rejects.toThrow("Approval timeout after 50ms");
     expect(executeFn).not.toHaveBeenCalled();
   });
+
+  it("invoke method: wraps LangChain-style invoke with governance", async () => {
+    const gateway = createMockGateway({
+      check: vi.fn(async () => ({ denied: true, pending: false, reason: "blocked" }))
+    });
+    const invokeFn = vi.fn(async () => "should not run");
+    const tools = {
+      lcTool: { name: "lcTool", invoke: invokeFn }
+    };
+
+    withAssembly(tools, { gatewayClient: gateway });
+
+    await expect(tools.lcTool.invoke("input")).rejects.toThrow(PolicyViolationError);
+    await expect(tools.lcTool.invoke("input")).rejects.toThrow(
+      "Tool 'lcTool' blocked: blocked"
+    );
+    expect(invokeFn).not.toHaveBeenCalled();
+  });
 });
