@@ -188,3 +188,21 @@ export async function patchVercelAiSdk(
   vercelAiSdkPatchState.patchedModule = module;
   return true;
 }
+
+export function unpatchVercelAiSdk(): boolean {
+  if (!vercelAiSdkPatchState.isPatched) {
+    return false;
+  }
+  if (!vercelAiSdkPatchState.patchedModule) {
+    return false;
+  }
+  if (!vercelAiSdkPatchState.originalToolFactory) {
+    return false;
+  }
+
+  vercelAiSdkPatchState.patchedModule.tool =
+    vercelAiSdkPatchState.originalToolFactory;
+  vercelAiSdkPatchState.isPatched = false;
+  vercelAiSdkPatchState.patchedModule = undefined;
+  return true;
+}
