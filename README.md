@@ -4,6 +4,15 @@
 
 TypeScript/Node.js SDK for Agent Assembly, licensed under Apache 2.0.
 
+## Prerequisites
+
+Before installing or contributing, ensure your environment has:
+
+- **Node.js** ≥ 18.18.0 (LTS). The active LTS lines (18, 20, 22, 24) are exercised in CI.
+- **pnpm** ≥ 10. The repository enforces pnpm via `engines` and ships a `pnpm-lock.yaml`.
+- **Rust toolchain** (only required when rebuilding the native `aa-ffi-node` binding from
+  source — most consumers receive a prebuilt platform binary via `optionalDependencies`).
+
 ## Goal
 
 Provide a thin wrapper around the Agent Assembly Rust runtime through:
