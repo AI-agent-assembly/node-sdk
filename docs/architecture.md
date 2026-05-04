@@ -71,3 +71,40 @@ callback cannot preempt execution by return value. The adapter therefore registe
 callback handler (post-execution redaction at `handleToolEnd`) **and** auto-wraps tools
 with `wrapToolWithAssembly` (true pre-execution deny / pending checks). Both layers
 must be kept consistent — changes to one require corresponding changes to the other.
+
+## Dual ESM / CJS package structure
+
+The package publishes both ECMAScript-Modules and CommonJS entries from a single
+TypeScript source. Two `tsc` passes drive the build:
+
+```mermaid
+flowchart TB
+    src["src/**/*.ts<br/>(single source of truth)"]
+    src -->|tsc -p tsconfig.build.json| esm["dist/esm/<br/>+ index.js (.mjs semantics)"]
+    src -->|tsc -p tsconfig.cjs.json| cjs["dist/cjs/<br/>+ index.js (.cjs semantics)"]
+    cjs -->|scripts/write-cjs-package-json.mjs| cjsPkg["dist/cjs/package.json<br/>{ type: commonjs }"]
+    src -->|tsc declarations| dts["dist/types/<br/>+ index.d.ts"]
+    esm --> exports
+    cjs --> exports
+    dts --> exports
+    exports["package.json #quot;exports#quot;<br/>conditional resolution"]
+```
+
+The package's `exports` field is the single source of truth for module resolution:
+
+```json
+"exports": {
+  ".": {
+    "import": "./dist/esm/index.js",
+    "require": "./dist/cjs/index.js",
+    "types": "./dist/types/index.d.ts"
+  }
+}
+```
+
+ESM consumers (`import { ... } from "@agent-assembly/sdk"`) resolve to `dist/esm/`; CJS
+consumers (`require("@agent-assembly/sdk")`) resolve to `dist/cjs/`. TypeScript consumers
+in either module system find `dist/types/index.d.ts`. The CJS sub-tree's own
+`package.json` (written by `scripts/write-cjs-package-json.mjs`) declares
+`{ "type": "commonjs" }` so Node treats `.js` files there with CJS semantics regardless
+of the parent `package.json`'s `"type": "module"`.
