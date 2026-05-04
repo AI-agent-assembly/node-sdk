@@ -26,6 +26,22 @@ yarn add @agent-assembly/sdk
 The SDK ships dual ESM/CJS entries and selects a prebuilt native binding for your platform
 during `postinstall`. No additional build step is required for typical consumers.
 
+## Quickstart
+
+### ESM (`import`)
+
+```ts
+import { initAssembly, withAssembly } from "@agent-assembly/sdk";
+import { ChatOpenAI } from "@langchain/openai";
+
+const ctx = await initAssembly({ gatewayUrl: "http://localhost:8080", agentId: "demo" });
+const governedTools = withAssembly(myTools, { context: ctx });
+const model = new ChatOpenAI({ model: "gpt-4o-mini" }).bindTools(governedTools);
+```
+
+`initAssembly()` registers the LangChain callback handler and the AdapterRegistry, so any
+tool wrapped by `withAssembly()` is checked against gateway policy before invocation.
+
 ## Goal
 
 Provide a thin wrapper around the Agent Assembly Rust runtime through:
