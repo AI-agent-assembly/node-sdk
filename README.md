@@ -60,6 +60,21 @@ selects ESM or CJS automatically based on how the consumer imports it.
 `initAssembly()` registers the LangChain callback handler and the AdapterRegistry, so any
 tool wrapped by `withAssembly()` is checked against gateway policy before invocation.
 
+## Supported Node.js versions
+
+The SDK is tested against every active Node.js LTS line on every supported operating
+system. The matrix is enforced by `.github/workflows/test-matrix.yml`:
+
+| Node.js | Linux (ubuntu-latest) | macOS (macos-latest) | Windows (windows-latest) |
+| ------- | --------------------- | -------------------- | ------------------------ |
+| 18      | ✅                    | ✅                   | ✅                       |
+| 20      | ✅                    | ✅                   | ✅                       |
+| 22      | ✅                    | ✅                   | ✅                       |
+| 24      | ✅                    | ✅                   | ✅                       |
+
+Older Node.js lines (≤ 16) are unsupported because the napi-rs ABI used by the native
+binding requires Node 18.18 or newer.
+
 ## Goal
 
 Provide a thin wrapper around the Agent Assembly Rust runtime through:
