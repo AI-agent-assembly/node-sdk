@@ -25,6 +25,22 @@ const config: Config = {
   },
   themes: ["@docusaurus/theme-mermaid"],
 
+  plugins: [
+    [
+      "docusaurus-plugin-typedoc",
+      {
+        entryPoints: ["../src/index.ts"],
+        tsconfig: "../tsconfig.build.json",
+        out: "../docs/api",
+        readme: "none",
+        sidebar: {
+          autoConfiguration: true,
+          pretty: true,
+        },
+      },
+    ],
+  ],
+
   i18n: {
     defaultLocale: "en",
     locales: ["en"],
