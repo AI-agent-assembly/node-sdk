@@ -64,3 +64,32 @@ To add a new adapter for `<framework>`:
 Refer to `src/adapters/langchain/` for a reference implementation that demonstrates the
 two-layer enforcement model required when a framework's hook surface cannot preempt
 execution.
+
+## Running tests and type checks
+
+```bash
+pnpm test                       # vitest run, full suite
+pnpm test -- src/adapters       # filter by directory
+pnpm test -- -t "deferred"      # filter by test name
+pnpm test:coverage              # vitest with lcov + text reporter
+pnpm typecheck                  # tsc --noEmit against tsconfig.test.json
+```
+
+The native integration test only runs when `AA_NATIVE_TEST=1` is set:
+
+```bash
+AA_NATIVE_TEST=1 pnpm vitest run tests/native-napi-integration.test.ts
+```
+
+### TypeScript strict mode
+
+`tsconfig.json` enables `strict`, `noUncheckedIndexedAccess`, and
+`exactOptionalPropertyTypes`. Contributions must compile cleanly under these flags:
+
+- No `any` without an inline comment justifying the escape hatch.
+- Index access (`array[i]`, `record[key]`) returns `T | undefined` — handle the
+  `undefined` case explicitly.
+- Optional properties must be either present with a value or absent; do not assign
+  `undefined` to satisfy the type system.
+
+Run `pnpm typecheck` before pushing — CI rejects any type error.
