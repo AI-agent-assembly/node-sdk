@@ -171,3 +171,12 @@ Package verification checks include:
 - ESM and CJS entry smoke tests
 - export `types` mapping assertion
 - `npm pack` content and package size guard tests
+
+## Documentation
+
+Full guides, architecture deep-dives, and the complete API reference are published at:
+
+**https://ai-agent-assembly.github.io/node-sdk/**
+
+The site is built from the `docs/` (content) and `website/` (Docusaurus app) directories
+and is re-published on every push to `master` via the `publish-docs.yml` workflow.
