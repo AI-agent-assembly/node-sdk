@@ -93,3 +93,41 @@ AA_NATIVE_TEST=1 pnpm vitest run tests/native-napi-integration.test.ts
   `undefined` to satisfy the type system.
 
 Run `pnpm typecheck` before pushing — CI rejects any type error.
+
+## Linting and formatting
+
+The repository uses **ESLint flat config** (`eslint.config.mjs`) layered on
+`@eslint/js` recommended rules and `typescript-eslint`'s recommended rules, plus a
+type-aware project pass over `tsconfig.build.json` and `tsconfig.test.json`.
+
+```bash
+pnpm lint                       # eslint .
+pnpm format                     # prettier --write .
+```
+
+Notes:
+
+- Generated artifacts (`dist/`, `coverage/`, `native/**/target/`) and the napi-rs
+  generated files (`native/aa-ffi-node/index.cjs`, `native/aa-ffi-node/index.d.ts`)
+  are excluded from linting.
+- Prettier formats with `printWidth: 100`, `semi: true`, `singleQuote: false`,
+  `trailingComma: "none"` (see `.prettierrc`).
+- Do not suppress lint warnings without a comment explaining the exception.
+
+## Pull request checklist
+
+Before opening a PR, confirm each item:
+
+- [ ] Branch follows `<release>/<ticket>/<type>/<short-summary>` naming.
+- [ ] Each commit is atomic and uses GitEmoji-prefixed messages
+      (`<emoji> (<scope>): <imperative summary>`).
+- [ ] `pnpm lint` is clean.
+- [ ] `pnpm typecheck` is clean.
+- [ ] `pnpm test` passes locally.
+- [ ] New behaviour has tests; bug fixes include a regression test.
+- [ ] Public API changes are reflected in `src/index.ts` exports and types.
+- [ ] PR title format: `[<ticket>] <emoji> (<scope>): <summary>`.
+- [ ] PR body fills out `.github/PULL_REQUEST_TEMPLATE.md` (target, ticket links,
+      effecting scope, description).
+- [ ] Base branch is `master`. Push remote is `remote` (not `origin`).
+- [ ] At least one Pioneer team approval before merge.
