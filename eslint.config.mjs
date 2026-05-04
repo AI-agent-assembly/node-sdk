@@ -8,7 +8,9 @@ export default tseslint.config(
       "coverage/**",
       "native/**/target/**",
       "native/aa-ffi-node/index.cjs",
-      "native/aa-ffi-node/index.d.ts"
+      "native/aa-ffi-node/index.d.ts",
+      "website/**",
+      "docs/api/**"
     ]
   },
   js.configs.recommended,
