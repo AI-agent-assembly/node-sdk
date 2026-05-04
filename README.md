@@ -13,6 +13,19 @@ Before installing or contributing, ensure your environment has:
 - **Rust toolchain** (only required when rebuilding the native `aa-ffi-node` binding from
   source — most consumers receive a prebuilt platform binary via `optionalDependencies`).
 
+## Installation
+
+```bash
+pnpm add @agent-assembly/sdk
+# or
+npm install @agent-assembly/sdk
+# or
+yarn add @agent-assembly/sdk
+```
+
+The SDK ships dual ESM/CJS entries and selects a prebuilt native binding for your platform
+during `postinstall`. No additional build step is required for typical consumers.
+
 ## Goal
 
 Provide a thin wrapper around the Agent Assembly Rust runtime through:
