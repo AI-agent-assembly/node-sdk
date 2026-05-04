@@ -39,6 +39,20 @@ const governedTools = withAssembly(myTools, { context: ctx });
 const model = new ChatOpenAI({ model: "gpt-4o-mini" }).bindTools(governedTools);
 ```
 
+### CJS (`require`)
+
+```js
+const { initAssembly, withAssembly } = require("@agent-assembly/sdk");
+const { ChatOpenAI } = require("@langchain/openai");
+
+const ctx = await initAssembly({ gatewayUrl: "http://localhost:8080", agentId: "demo" });
+const governedTools = withAssembly(myTools, { context: ctx });
+const model = new ChatOpenAI({ model: "gpt-4o-mini" }).bindTools(governedTools);
+```
+
+Both entrypoints resolve to the same governance pipeline; the package's `exports` field
+selects ESM or CJS automatically based on how the consumer imports it.
+
 `initAssembly()` registers the LangChain callback handler and the AdapterRegistry, so any
 tool wrapped by `withAssembly()` is checked against gateway policy before invocation.
 
