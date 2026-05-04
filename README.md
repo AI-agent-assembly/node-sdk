@@ -1,8 +1,79 @@
 # @agent-assembly/sdk
+
+[![npm version](https://img.shields.io/npm/v/@agent-assembly/sdk.svg)](https://www.npmjs.com/package/@agent-assembly/sdk)
+[![CI](https://github.com/AI-agent-assembly/node-sdk/actions/workflows/test-matrix.yml/badge.svg?branch=master)](https://github.com/AI-agent-assembly/node-sdk/actions/workflows/test-matrix.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=AI-agent-assembly_node-sdk&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=AI-agent-assembly_node-sdk)
 [![codecov](https://codecov.io/gh/AI-agent-assembly/node-sdk/branch/master/graph/badge.svg)](https://codecov.io/gh/AI-agent-assembly/node-sdk)
 
 TypeScript/Node.js SDK for Agent Assembly, licensed under Apache 2.0.
+
+## Prerequisites
+
+Before installing or contributing, ensure your environment has:
+
+- **Node.js** ≥ 18.18.0 (LTS). The active LTS lines (18, 20, 22, 24) are exercised in CI.
+- **pnpm** ≥ 10. The repository enforces pnpm via `engines` and ships a `pnpm-lock.yaml`.
+- **Rust toolchain** (only required when rebuilding the native `aa-ffi-node` binding from
+  source — most consumers receive a prebuilt platform binary via `optionalDependencies`).
+
+## Installation
+
+```bash
+pnpm add @agent-assembly/sdk
+# or
+npm install @agent-assembly/sdk
+# or
+yarn add @agent-assembly/sdk
+```
+
+The SDK ships dual ESM/CJS entries and selects a prebuilt native binding for your platform
+during `postinstall`. No additional build step is required for typical consumers.
+
+## Quickstart
+
+### ESM (`import`)
+
+```ts
+import { initAssembly, withAssembly } from "@agent-assembly/sdk";
+import { ChatOpenAI } from "@langchain/openai";
+
+const ctx = await initAssembly({ gatewayUrl: "http://localhost:8080", agentId: "demo" });
+const governedTools = withAssembly(myTools, { context: ctx });
+const model = new ChatOpenAI({ model: "gpt-4o-mini" }).bindTools(governedTools);
+```
+
+### CJS (`require`)
+
+```js
+const { initAssembly, withAssembly } = require("@agent-assembly/sdk");
+const { ChatOpenAI } = require("@langchain/openai");
+
+const ctx = await initAssembly({ gatewayUrl: "http://localhost:8080", agentId: "demo" });
+const governedTools = withAssembly(myTools, { context: ctx });
+const model = new ChatOpenAI({ model: "gpt-4o-mini" }).bindTools(governedTools);
+```
+
+Both entrypoints resolve to the same governance pipeline; the package's `exports` field
+selects ESM or CJS automatically based on how the consumer imports it.
+
+`initAssembly()` registers the LangChain callback handler and the AdapterRegistry, so any
+tool wrapped by `withAssembly()` is checked against gateway policy before invocation.
+
+## Supported Node.js versions
+
+The SDK is tested against every active Node.js LTS line on every supported operating
+system. The matrix is enforced by `.github/workflows/test-matrix.yml`:
+
+| Node.js | Linux (ubuntu-latest) | macOS (macos-latest) | Windows (windows-latest) |
+| ------- | --------------------- | -------------------- | ------------------------ |
+| 18      | ✅                    | ✅                   | ✅                       |
+| 20      | ✅                    | ✅                   | ✅                       |
+| 22      | ✅                    | ✅                   | ✅                       |
+| 24      | ✅                    | ✅                   | ✅                       |
+
+Older Node.js lines (≤ 16) are unsupported because the napi-rs ABI used by the native
+binding requires Node 18.18 or newer.
 
 ## Goal
 
@@ -100,3 +171,12 @@ Package verification checks include:
 - ESM and CJS entry smoke tests
 - export `types` mapping assertion
 - `npm pack` content and package size guard tests
+
+## Documentation
+
+Full guides, architecture deep-dives, and the complete API reference are published at:
+
+**https://ai-agent-assembly.github.io/node-sdk/**
+
+The site is built from the `docs/` (content) and `website/` (Docusaurus app) directories
+and is re-published on every push to `master` via the `publish-docs.yml` workflow.
