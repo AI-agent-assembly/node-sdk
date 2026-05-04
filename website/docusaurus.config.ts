@@ -31,6 +31,7 @@ const config: Config = {
       {
         docs: {
           path: "../docs",
+          routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
           editUrl: "https://github.com/AI-agent-assembly/node-sdk/tree/master/",
         },
