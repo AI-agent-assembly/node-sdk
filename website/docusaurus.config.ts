@@ -18,10 +18,12 @@ const config: Config = {
   projectName: "node-sdk",
 
   onBrokenLinks: "throw",
-  onBrokenMarkdownLinks: "warn",
 
   markdown: {
     mermaid: true,
+    hooks: {
+      onBrokenMarkdownLinks: "warn",
+    },
   },
   themes: ["@docusaurus/theme-mermaid"],
 
