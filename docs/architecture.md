@@ -30,3 +30,44 @@ The per-platform binary is shipped as an `optionalDependencies` entry
 selected at install time by `scripts/postinstall.mjs` based on `process.platform` and
 `process.arch`. Consumers who can't use a prebuilt binary may rebuild via
 `pnpm native:build:release` against a local Rust toolchain.
+
+## Framework adapters and the AdapterRegistry
+
+Every supported third-party framework is integrated through an object that satisfies
+the `Adapter` interface in `src/adapters/adapter.ts`. Adapters are added to an
+`AdapterRegistry` (`src/adapters/adapter-registry.ts`) at `initAssembly()` time, and
+`applyAll()` activates each one's framework-specific hooks.
+
+```mermaid
+sequenceDiagram
+    participant App as Consumer code
+    participant SDK as initAssembly()
+    participant Reg as AdapterRegistry
+    participant LC as LangChain Adapter
+    participant Tool as Wrapped tool
+    participant GW as Gateway
+
+    App->>SDK: initAssembly({ gatewayUrl, agentId })
+    SDK->>Reg: detectFrameworks() → register(LC, ...)
+    SDK->>Reg: applyAll()
+    Reg->>LC: apply()
+    LC-->>Reg: callback handler registered
+    LC-->>Reg: tools wrapped via wrapToolWithAssembly
+    SDK-->>App: AssemblyContext
+
+    App->>Tool: invoke
+    Tool->>LC: pre-execution check (wrapper layer)
+    LC->>GW: policy decision request
+    GW-->>LC: allow / deny / pending
+    alt allow
+        LC->>Tool: proceed
+    else deny
+        LC-->>App: throw PolicyViolationError
+    end
+```
+
+LangChain requires a **two-layer enforcement model** because its `handleToolStart`
+callback cannot preempt execution by return value. The adapter therefore registers a
+callback handler (post-execution redaction at `handleToolEnd`) **and** auto-wraps tools
+with `wrapToolWithAssembly` (true pre-execution deny / pending checks). Both layers
+must be kept consistent — changes to one require corresponding changes to the other.
