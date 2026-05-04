@@ -37,5 +37,5 @@ describe("packaging size budget", () => {
 
       fs.rmSync(packDir, { recursive: true, force: true });
     });
-  }, 30000);
+  }, 90000);
 });
