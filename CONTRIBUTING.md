@@ -131,3 +131,25 @@ Before opening a PR, confirm each item:
       effecting scope, description).
 - [ ] Base branch is `master`. Push remote is `remote` (not `origin`).
 - [ ] At least one Pioneer team approval before merge.
+
+## Building the documentation site
+
+Long-form docs are delivered as a Docusaurus site. Markdown content lives in `docs/`
+and the Docusaurus app (config, theme, sidebars) lives in `website/`. The two are
+intentionally separated so consumers reading the GitHub repo see the content directly.
+
+```bash
+cd website
+pnpm install                    # install Docusaurus deps (separate from the SDK's)
+pnpm start                      # local dev server with hot reload
+pnpm build                      # production build into website/build/
+pnpm serve                      # preview the production build locally
+```
+
+The API reference under the **API** sidebar section is regenerated automatically by
+`docusaurus-plugin-typedoc` from `src/index.ts` on every build — do not edit those
+pages by hand.
+
+When you push your branch, the `publish-docs.yml` workflow builds the site and
+deploys to the `gh-pages` branch on push to `master`. The published site is at
+**https://ai-agent-assembly.github.io/node-sdk/**.
