@@ -33,6 +33,7 @@ const config: Config = {
         tsconfig: "../tsconfig.build.json",
         out: "../docs/api",
         readme: "none",
+        gitRemote: "remote",
         sidebar: {
           autoConfiguration: true,
           pretty: true,
