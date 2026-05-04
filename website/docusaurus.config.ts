@@ -30,9 +30,9 @@ const config: Config = {
       "classic",
       {
         docs: {
+          path: "../docs",
           sidebarPath: "./sidebars.ts",
-          editUrl:
-            "https://github.com/AI-agent-assembly/node-sdk/tree/master/website/",
+          editUrl: "https://github.com/AI-agent-assembly/node-sdk/tree/master/",
         },
         blog: false,
         theme: {
