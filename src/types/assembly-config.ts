@@ -9,4 +9,7 @@ export interface AssemblyConfig {
   mode?: AssemblyMode;
   gatewayClient?: GatewayClient;
   langchain?: LangChainAdapterConfig;
+  parentAgentId?: string;
+  teamId?: string;
+  delegationReason?: string;
 }
