@@ -175,6 +175,9 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
         ...(openAIAgentsPatched ? ["openai-agents"] : [])
       ])
     ],
+    ...(config.parentAgentId !== undefined && { parentAgentId: config.parentAgentId }),
+    ...(config.teamId !== undefined && { teamId: config.teamId }),
+    ...(config.delegationReason !== undefined && { delegationReason: config.delegationReason }),
     shutdown: async () => {
       for (const adapter of adapters) {
         await adapter.shutdown?.();
