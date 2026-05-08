@@ -5,6 +5,7 @@ import type {
 } from "../types/vercel-ai-adapter.js";
 import type { GatewayClient } from "../gateway/client.js";
 import { PolicyViolationError } from "../errors/policy-violation-error.js";
+import { runWithAgentId } from "../lineage/agent-context-store.js";
 
 export interface VercelAiSdkModule {
   tool: VercelAiToolFactory;
@@ -40,6 +41,8 @@ export function captureOriginalToolFactory(
 export interface CreateWrappedExecuteOptions {
   approvalTimeoutMs: number;
   fallbackRunId: string;
+  /** When set, tool execution runs inside runWithAgentId so child initAssembly auto-inherits parentAgentId. */
+  agentId?: string;
 }
 
 export function recordToolResultNonBlocking(
@@ -63,9 +66,12 @@ export function createWrappedExecute<TArgs, TResult>(
     const runId = executionOptions.toolCallId ?? options.fallbackRunId;
 
     const executeOriginal = async (): Promise<TResult> => {
-      const result = await originalExecute(args, executionOptions);
-      recordToolResultNonBlocking(gatewayClient, runId, result);
-      return result;
+      const run = async (): Promise<TResult> => {
+        const result = await originalExecute(args, executionOptions);
+        recordToolResultNonBlocking(gatewayClient, runId, result);
+        return result;
+      };
+      return options.agentId ? runWithAgentId(options.agentId, run) : run();
     };
 
     let decision;
@@ -111,6 +117,7 @@ export function createWrappedExecute<TArgs, TResult>(
 export interface CreatePatchedToolFactoryOptions {
   approvalTimeoutMs: number;
   fallbackRunId: string;
+  agentId?: string;
 }
 
 export function createPatchedToolFactory(
@@ -145,6 +152,7 @@ export interface PatchVercelAiSdkOptions {
   gatewayClient: GatewayClient;
   approvalTimeoutMs?: number;
   fallbackRunId?: string;
+  agentId?: string;
   loadModule?: () => Promise<VercelAiSdkModule | undefined>;
 }
 
@@ -181,7 +189,8 @@ export async function patchVercelAiSdk(
     options.gatewayClient,
     {
       approvalTimeoutMs: options.approvalTimeoutMs ?? 30_000,
-      fallbackRunId: options.fallbackRunId ?? "vercel-ai-sdk"
+      fallbackRunId: options.fallbackRunId ?? "vercel-ai-sdk",
+      ...(options.agentId !== undefined ? { agentId: options.agentId } : {})
     }
   );
   vercelAiSdkPatchState.isPatched = true;
