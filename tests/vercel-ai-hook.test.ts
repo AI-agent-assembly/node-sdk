@@ -259,6 +259,29 @@ describe("vercel ai sdk adapter", () => {
     expect(result.description).toBe("a schema-only tool");
   });
 
+  it("sets agent context store during tool execution when agentId is provided", async () => {
+    const gateway = createGatewayClientMock();
+    const lineage = await import("../src/lineage/agent-context-store.js");
+    const captured: string[] = [];
+
+    const originalExecute = vi.fn(async () => {
+      captured.push(lineage.currentAgentId() ?? "none");
+      return { ok: true };
+    });
+
+    const hooks = await import("../src/hooks/ai-sdk.js");
+    const wrappedExecute = hooks.createWrappedExecute(
+      originalExecute,
+      "spawn tool",
+      gateway,
+      { approvalTimeoutMs: 5_000, fallbackRunId: "fallback", agentId: "agent-vercel-1" }
+    );
+
+    await wrappedExecute({ x: 1 }, { toolCallId: "call-lineage" });
+
+    expect(captured).toEqual(["agent-vercel-1"]);
+  });
+
   it("activates patching during initAssembly when ai package is detected", async () => {
     const gateway = createGatewayClientMock();
     const originalTool = vi.fn((def: VercelAiToolDefinition) => def) as unknown as VercelAiToolFactory;
