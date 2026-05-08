@@ -6,6 +6,7 @@ import {
   type WrapToolWithAssemblyOptions
 } from "../adapters/langchain/index.js";
 import { createNoopGatewayClient, type GatewayClient } from "../gateway/client.js";
+import { createNativeClient, type NativeClient } from "../native/client.js";
 import type { AssemblyConfig } from "../types/assembly-config.js";
 import type { AssemblyContext } from "../types/assembly-context.js";
 import type {
@@ -18,6 +19,15 @@ import { hasOpenAIAgentsSDK } from "../hooks/openai-agents-detection.js";
 import { patchOpenAIAgents } from "../hooks/openai-agents.js";
 
 const requireFromCwd = createRequire(`${process.cwd()}/`);
+
+function buildRegistrationEvent(config: AssemblyConfig): Record<string, string> {
+  const event: Record<string, string> = { event_type: "register" };
+  if (config.parentAgentId !== undefined) event.parent_agent_id = config.parentAgentId;
+  if (config.teamId !== undefined) event.team_id = config.teamId;
+  if (config.delegationReason !== undefined) event.delegation_reason = config.delegationReason;
+  if (config.spawnedByTool !== undefined) event.spawned_by_tool = config.spawnedByTool;
+  return event;
+}
 
 export function createClient(config: AssemblyConfig): GatewayClient {
   const mode = config.mode ?? "auto";
@@ -163,6 +173,18 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
 
   await startNetworkLayerIfNeeded(client, config);
 
+  // Send topology registration event through the native transport on every boot
+  // except sdk-only mode (which has no sidecar to register with).
+  let nativeClient: NativeClient | undefined;
+  if (config.mode !== "sdk-only") {
+    nativeClient = createNativeClient({
+      gateway: config.gatewayUrl,
+      apiKey: config.apiKey,
+      mode: config.mode === "napi-inprocess" ? "napi-inprocess" : "grpc-sidecar",
+    });
+    nativeClient.sendEvent(buildRegistrationEvent(config));
+  }
+
   const langChainHandler = registerLangChainHandler(config, client, frameworks);
   const wrappedLangChainTools = wrapLangChainTools(config, client, frameworks);
   const vercelAiSdkPatched = await patchDetectedVercelAiSdk(client, frameworks);
@@ -186,6 +208,7 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
       for (const adapter of adapters) {
         await adapter.shutdown?.();
       }
+      await nativeClient?.close();
       await client.close();
     }
   };
