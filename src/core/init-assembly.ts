@@ -154,6 +154,9 @@ async function patchDetectedOpenAIAgents(
 }
 
 export async function initAssembly(config: AssemblyConfig): Promise<AssemblyContext> {
+  if (config.delegationReason !== undefined && config.delegationReason.length > 256) {
+    throw new RangeError("delegationReason must be <= 256 characters");
+  }
   const client = createClient(config);
   const frameworks = detectFrameworks();
   const adapters = await registerAdapters(frameworks);
@@ -178,6 +181,7 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
     ...(config.parentAgentId !== undefined && { parentAgentId: config.parentAgentId }),
     ...(config.teamId !== undefined && { teamId: config.teamId }),
     ...(config.delegationReason !== undefined && { delegationReason: config.delegationReason }),
+    ...(config.spawnedByTool !== undefined && { spawnedByTool: config.spawnedByTool }),
     shutdown: async () => {
       for (const adapter of adapters) {
         await adapter.shutdown?.();

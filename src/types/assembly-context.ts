@@ -3,5 +3,6 @@ export interface AssemblyContext {
   readonly parentAgentId?: string;
   readonly teamId?: string;
   readonly delegationReason?: string;
+  readonly spawnedByTool?: string;
   shutdown: () => Promise<void>;
 }
