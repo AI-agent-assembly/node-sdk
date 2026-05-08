@@ -15,8 +15,13 @@ import type {
 } from "../types/langchain-adapter.js";
 import { hasVercelAiSdk } from "../hooks/ai-sdk-detection.js";
 import { patchVercelAiSdk } from "../hooks/ai-sdk.js";
+import { hasLangGraph } from "../hooks/langgraph-detection.js";
+import { patchLangGraph } from "../hooks/langgraph.js";
+import { hasMastra } from "../hooks/mastra-detection.js";
+import { patchMastra } from "../hooks/mastra.js";
 import { hasOpenAIAgentsSDK } from "../hooks/openai-agents-detection.js";
 import { patchOpenAIAgents } from "../hooks/openai-agents.js";
+import { currentAgentId } from "../lineage/index.js";
 
 const requireFromCwd = createRequire(`${process.cwd()}/`);
 
@@ -58,6 +63,12 @@ export function detectFrameworks(): string[] {
   }
   if (hasOpenAIAgentsSDK()) {
     detected.push("openai-agents");
+  }
+  if (hasLangGraph()) {
+    detected.push("langgraph-js");
+  }
+  if (hasMastra()) {
+    detected.push("mastra");
   }
 
   return detected;
@@ -143,13 +154,39 @@ function wrapLangChainTools(
 
 async function patchDetectedVercelAiSdk(
   client: GatewayClient,
-  frameworks: readonly string[]
+  frameworks: readonly string[],
+  agentId?: string
 ): Promise<boolean> {
   if (!frameworks.includes("vercel-ai-sdk")) {
     return false;
   }
 
-  return patchVercelAiSdk({ gatewayClient: client });
+  return patchVercelAiSdk({
+    gatewayClient: client,
+    ...(agentId !== undefined ? { agentId } : {})
+  });
+}
+
+async function patchDetectedLangGraph(
+  frameworks: readonly string[],
+  agentId?: string
+): Promise<boolean> {
+  if (!frameworks.includes("langgraph-js") || !agentId) {
+    return false;
+  }
+
+  return patchLangGraph({ agentId });
+}
+
+async function patchDetectedMastra(
+  frameworks: readonly string[],
+  agentId?: string
+): Promise<boolean> {
+  if (!frameworks.includes("mastra") || !agentId) {
+    return false;
+  }
+
+  return patchMastra({ agentId });
 }
 
 async function patchDetectedOpenAIAgents(
@@ -167,28 +204,37 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
   if (config.delegationReason !== undefined && config.delegationReason.length > 256) {
     throw new RangeError("delegationReason must be <= 256 characters");
   }
-  const client = createClient(config);
+  // Auto-populate parentAgentId from the async context store when not explicitly provided.
+  // This allows child agents spawned inside framework hooks to inherit lineage automatically.
+  const resolvedParentAgentId = config.parentAgentId ?? currentAgentId();
+  const resolvedConfig: AssemblyConfig = resolvedParentAgentId
+    ? { ...config, parentAgentId: resolvedParentAgentId }
+    : config;
+
+  const client = createClient(resolvedConfig);
   const frameworks = detectFrameworks();
   const adapters = await registerAdapters(frameworks);
 
-  await startNetworkLayerIfNeeded(client, config);
+  await startNetworkLayerIfNeeded(client, resolvedConfig);
 
   // Send topology registration event through the native transport on every boot
   // except sdk-only mode (which has no sidecar to register with).
   let nativeClient: NativeClient | undefined;
-  if (config.mode !== "sdk-only") {
+  if (resolvedConfig.mode !== "sdk-only") {
     nativeClient = createNativeClient({
-      gateway: config.gatewayUrl,
-      apiKey: config.apiKey,
-      mode: config.mode === "napi-inprocess" ? "napi-inprocess" : "grpc-sidecar",
+      gateway: resolvedConfig.gatewayUrl,
+      apiKey: resolvedConfig.apiKey,
+      mode: resolvedConfig.mode === "napi-inprocess" ? "napi-inprocess" : "grpc-sidecar",
     });
-    nativeClient.sendEvent(buildRegistrationEvent(config));
+    nativeClient.sendEvent(buildRegistrationEvent(resolvedConfig));
   }
 
-  const langChainHandler = registerLangChainHandler(config, client, frameworks);
-  const wrappedLangChainTools = wrapLangChainTools(config, client, frameworks);
-  const vercelAiSdkPatched = await patchDetectedVercelAiSdk(client, frameworks);
+  const langChainHandler = registerLangChainHandler(resolvedConfig, client, frameworks);
+  const wrappedLangChainTools = wrapLangChainTools(resolvedConfig, client, frameworks);
+  const vercelAiSdkPatched = await patchDetectedVercelAiSdk(client, frameworks, resolvedConfig.agentId);
   const openAIAgentsPatched = await patchDetectedOpenAIAgents(client, frameworks);
+  const langGraphPatched = await patchDetectedLangGraph(frameworks, resolvedConfig.agentId);
+  const mastraPatched = await patchDetectedMastra(frameworks, resolvedConfig.agentId);
 
   return {
     activeAdapters: [
@@ -197,13 +243,15 @@ export async function initAssembly(config: AssemblyConfig): Promise<AssemblyCont
         ...(langChainHandler ? ["langchain-js"] : []),
         ...(wrappedLangChainTools.length > 0 ? ["langchain-js"] : []),
         ...(vercelAiSdkPatched ? ["vercel-ai-sdk"] : []),
-        ...(openAIAgentsPatched ? ["openai-agents"] : [])
+        ...(openAIAgentsPatched ? ["openai-agents"] : []),
+        ...(langGraphPatched ? ["langgraph-js"] : []),
+        ...(mastraPatched ? ["mastra"] : [])
       ])
     ],
-    ...(config.parentAgentId !== undefined && { parentAgentId: config.parentAgentId }),
-    ...(config.teamId !== undefined && { teamId: config.teamId }),
-    ...(config.delegationReason !== undefined && { delegationReason: config.delegationReason }),
-    ...(config.spawnedByTool !== undefined && { spawnedByTool: config.spawnedByTool }),
+    ...(resolvedConfig.parentAgentId !== undefined && { parentAgentId: resolvedConfig.parentAgentId }),
+    ...(resolvedConfig.teamId !== undefined && { teamId: resolvedConfig.teamId }),
+    ...(resolvedConfig.delegationReason !== undefined && { delegationReason: resolvedConfig.delegationReason }),
+    ...(resolvedConfig.spawnedByTool !== undefined && { spawnedByTool: resolvedConfig.spawnedByTool }),
     shutdown: async () => {
       for (const adapter of adapters) {
         await adapter.shutdown?.();
