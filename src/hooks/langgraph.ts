@@ -84,7 +84,8 @@ export async function patchLangGraph(options: PatchLangGraphOptions): Promise<bo
 
     try {
       return wrapCompiledGraph(compiled, agentId);
-    } catch {
+    } catch (e) {
+      console.warn("[assembly] LangGraph lineage patch error on compile; falling back:", e);
       return compiled;
     }
   };

@@ -126,8 +126,9 @@ describe("mastra hook", () => {
     expect(hooks.unpatchMastra()).toBe(false);
   });
 
-  it("falls back to original generate when runWithAgentId throws", async () => {
+  it("falls back to original generate and logs warning when runWithAgentId throws", async () => {
     const hooks = await import("../src/hooks/mastra.js");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     const originalGenerate = vi.fn(async () => ({ text: "fallback" }));
     const fakeAgentClass: MastraAgentClass = { prototype: { generate: originalGenerate } };
@@ -145,6 +146,11 @@ describe("mastra hook", () => {
 
     expect(result).toEqual({ text: "fallback" });
     expect(originalGenerate).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[assembly] Mastra lineage patch error on generate"),
+      expect.anything()
+    );
+    warnSpy.mockRestore();
   });
 
   it("activates mastra in activeAdapters during initAssembly when module detected", async () => {

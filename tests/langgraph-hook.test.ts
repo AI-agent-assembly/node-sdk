@@ -153,8 +153,9 @@ describe("langgraph hook", () => {
     expect(() => fakeModule.StateGraph.prototype.compile!()).toThrow("compile-error");
   });
 
-  it("returns unwrapped graph when wrapCompiledGraph throws", async () => {
+  it("returns unwrapped graph and logs warning when wrapCompiledGraph throws", async () => {
     const hooks = await import("../src/hooks/langgraph.js");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     const badCompiled = {
       get invoke(): never {
@@ -176,6 +177,11 @@ describe("langgraph hook", () => {
     await hooks.patchLangGraph({ agentId: "agent-5", loadModule: async () => fakeModule });
 
     expect(() => fakeModule.StateGraph.prototype.compile!()).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[assembly] LangGraph lineage patch error"),
+      expect.anything()
+    );
+    warnSpy.mockRestore();
   });
 
   it("activates langgraph-js in activeAdapters during initAssembly when module detected", async () => {

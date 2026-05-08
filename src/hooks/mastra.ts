@@ -77,7 +77,8 @@ export async function patchMastra(options: PatchMastraOptions): Promise<boolean>
   ): Promise<unknown> {
     try {
       return runWithAgentId(agentId, () => originalGenerate.apply(this, args));
-    } catch {
+    } catch (e) {
+      console.warn("[assembly] Mastra lineage patch error on generate; falling back:", e);
       return originalGenerate.apply(this, args);
     }
   };
@@ -93,7 +94,8 @@ export async function patchMastra(options: PatchMastraOptions): Promise<boolean>
     ): Promise<unknown> {
       try {
         return runWithAgentId(agentId, () => originalExecute.apply(this, args));
-      } catch {
+      } catch (e) {
+        console.warn("[assembly] Mastra lineage patch error on execute; falling back:", e);
         return originalExecute.apply(this, args);
       }
     };
