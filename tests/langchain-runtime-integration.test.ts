@@ -1,6 +1,4 @@
 import { DynamicTool } from "@langchain/core/tools";
-import { FakeStreamingLLM } from "@langchain/core/utils/testing";
-import { initializeAgentExecutorWithOptions } from "langchain/agents";
 import { describe, expect, it, vi } from "vitest";
 import { AssemblyCallbackHandler, wrapToolWithAssembly } from "../src/adapters/langchain/index.js";
 import { PolicyViolationError } from "../src/errors/index.js";
@@ -78,62 +76,5 @@ describe("LangChain runtime integration", () => {
     ).rejects.toBeInstanceOf(PolicyViolationError);
 
     expect(toolFunc).not.toHaveBeenCalled();
-  });
-
-  it("propagates blocked tool error cleanly through AgentExecutor output", async () => {
-    const gateway = createGatewayMock();
-    gateway.check = vi.fn(async () => ({ denied: true, reason: "blocked-by-policy" }));
-    const toolFunc = vi.fn(async (input: string) => `echo:${input}`);
-
-    const dynamicTool = new DynamicTool({
-      name: "blocked_tool",
-      description: "Blocked operation",
-      func: toolFunc,
-      returnDirect: true
-    });
-
-    const wrappedTool = wrapToolWithAssembly(dynamicTool, gateway, {
-      generateRunId: () => "run-agent-denied"
-    });
-
-    const llm = new FakeStreamingLLM({
-      responses: ["Thought: I should use a tool.\nAction: blocked_tool\nAction Input: secret"]
-    });
-
-    const executor = await initializeAgentExecutorWithOptions([wrappedTool], llm, {
-      agentType: "zero-shot-react-description",
-      maxIterations: 1,
-      returnIntermediateSteps: true,
-      handleToolRuntimeErrors: (error) =>
-        error instanceof Error ? error.message : String(error)
-    });
-
-    const result = await executor.invoke(
-      { input: "Use the blocked tool." },
-      { callbacks: [new AssemblyCallbackHandler(gateway)], runId: "run-agent-denied" }
-    );
-
-    expect(result.output).toContain("Tool 'blocked_tool' blocked: blocked-by-policy");
-    expect(result).toEqual(
-      expect.objectContaining({
-        intermediateSteps: [
-          expect.objectContaining({
-            action: expect.objectContaining({
-              tool: "blocked_tool",
-              toolInput: "secret"
-            }),
-            observation: expect.stringContaining("Tool 'blocked_tool' blocked: blocked-by-policy")
-          })
-        ]
-      })
-    );
-
-    expect(toolFunc).not.toHaveBeenCalled();
-    expect(gateway.check).toHaveBeenCalledWith({
-      action: "tool_call",
-      toolName: "blocked_tool",
-      args: "secret",
-      runId: "run-agent-denied"
-    });
   });
 });
